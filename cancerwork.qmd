@@ -1,0 +1,31 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+## Data sets created
+
+```{r}
+data.cancer <- read.csv("C:\\Users\\10409\\Desktop\\Group 37\\group_37.csv")
+n <- nrow(data.cancer)
+ind1 <- sample(c(1:n),floor(0.5*n))
+ind2 <- sample(c(1:n)[-ind1],floor(0.25*n))
+ind3 <- setdiff(c(1:n),c(ind1,ind2))
+train.data <- data.cancer[ind1,]
+valid.data <- data.cancer[ind2,]
+test.data <- data.cancer[ind3,]
+```
+
+五折分类
+
+## Dimension reduction
+
+```{r}
+#use PCA
+my.pca <- prcomp(train.data,center = T)
+summary(my.pca)
+plot(my.pca)
+my.pca$loadings
+
+```
