@@ -7,25 +7,91 @@ editor: visual
 ## Data sets created
 
 ```{r}
-data.cancer <- read.csv("C:\\Users\\10409\\Desktop\\Group 37\\group_37.csv")
-n <- nrow(data.cancer)
-ind1 <- sample(c(1:n),floor(0.5*n))
-ind2 <- sample(c(1:n)[-ind1],floor(0.25*n))
-ind3 <- setdiff(c(1:n),c(ind1,ind2))
-train.data <- data.cancer[ind1,]
-valid.data <- data.cancer[ind2,]
-test.data <- data.cancer[ind3,]
+data.train <- read.csv("C:\\Users\\10409\\Desktop\\Group 37\\group_37.csv")
+data.test <- read.csv("C:\\Users\\10409\\Desktop\\Group 37\\arcene_test (for groups 32-38).csv")
+data.train$Class<- as.factor(data.train$Class)
+data.test$Class <- as.factor(data.test$Class)
 ```
-
-五折分类
 
 ## Dimension reduction
 
 ```{r}
 #use PCA
-my.pca <- prcomp(train.data,center = T)
-summary(my.pca)
-plot(my.pca)
-my.pca$loadings
+train.pca  <- prcomp(data.train[,-1])
+summary(train.pca)
+plot(train.pca)
+sd.pca <- summary(train.pca)$sdev
+tot.pca <- sum(sd.pca^2)
+ave.var <- tot.pca/(ncol(data.train)-1)
+ave.var 
+sd.pca^2 > ave.var
+```
 
+so we choose the PCS from 1 to 99.
+
+```{r}
+loading.matrix <- train.pca$rotation #matrix
+#获取方差贡献率
+variable_contribution <- colSums(train.pca$rotation[,1:99]^2)
+cumulate_variance <- cumsum(sort(variable_contribution,decreasing = T))
+threshold <- 0.95*sum(variable_contribution)
+#选出贡献值95%的
+selected_variance <- which(cumulate_variance <= threshold)
+filtered_data <- data.train[,c(1,selected_variance+1)]
+```
+
+## Tree-based methods
+
+### Classification Tree
+
+```{r}
+#classification
+library(rpart)
+library(rpart.plot)
+set.seed(2023)
+model.classification <- rpart(Class~.,data=filtered_data,method="class",cp=-1,minsplit=2,minbucket=1)
+printcp(model.classification)
+plotcp(model.classification)
+```
+
+#### Pruning a tree
+
+```{r}
+model.classification1 <- prune(model.classification,cp=0.08)
+rpart.plot(model.classification1,type = 2,extra = 4)
+class.pred <- predict(model.classification1,newdata = data.test[,-1],type="class")
+test.table.class <- table(data.test[,1],class.pred)
+test.table.class[1,1]/sum(test.table.class[1,])
+test.table.class[2,2]/sum(test.table.class[2,])
+```
+
+### Bagging Tree
+
+```{r}
+library(randomForest)
+#bagging
+set.seed(2023)
+Model.bagging <- randomForest(Class~.,data=filtered_data,mtry=6)
+Model.bagging
+bagg.pred <- predict(Model.bagging,newdata = data.test[,-1],type="class")
+test.table.bagg <- table(data.test[,1],bagg.pred)
+test.table.bagg[1,1]/sum(test.table.bagg[1,])
+test.table.bagg[2,2]/sum(test.table.bagg[2,])
+```
+
+### Random Forests
+
+```{r}
+#random forest
+set.seed(2023)
+Model.random <- randomForest(Class~.,data=filtered_data,ntree=200)
+Model.random
+random.pred <- predict(Model.random,newdata = data.test[,-1],type="class")
+test.table.random <- table(data.test[,1],random.pred)
+test.table.random[1,1]/sum(test.table.random[1,])
+test.table.random[2,2]/sum(test.table.random[2,])
+```
+
+```{r}
+varImpPlot(Model.random, main="predicting class")
 ```
