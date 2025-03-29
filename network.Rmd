@@ -1,0 +1,163 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-03-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#|echo: true
+#package include
+library(dplyr) 
+library(neuralnet)
+library(NeuralNetTools)
+library(pROC)
+```
+
+```{r}
+#chack null and find gen_sep using varience
+data<-read.csv("group_37.csv")
+sum(is.na(data))
+target <- data[, 1]
+features <- data[, -1]
+data[, 1] <- ifelse(data[, 1] == -1, 0, 1)
+```
+```{r}
+feature_variances <- apply(features, 2, var)
+boxplot(feature_variances)
+q1 <- quantile(feature_variances, 0.25)  
+q3 <- quantile(feature_variances, 0.75) 
+IQ <-q3 - q1
+```
+
+
+```{r}
+variance_threshold <- q3 + 1.5*IQ
+selected_features <- features[, feature_variances > variance_threshold]
+removed_features <- features[, feature_variances < variance_threshold]
+cat("🔹 经过方差筛选，剩余特征数:", ncol(selected_features), "\n")
+cat("🔹 经过方差筛选，移除特征数:", ncol(removed_features), "\n")
+```
+
+```{r}
+pca<-prcomp(selected_features, scale = TRUE)
+#summary(pca)
+#plot(pca)
+sd.pca <- pca$sdev
+#ave.var <- mean((sd.pca^2))
+#ave.var
+#based on kaiser
+sd.pca^2 > 1
+```
+
+```{r}
+#based on var
+cumulative_variance <- cumsum(sd.pca^2) / sum(sd.pca^2)
+selected_components_cumulative <- which(cumulative_variance >= 0.95)[1]
+```
+
+```{r}
+pca_features <- pca$x[, 1:17]
+gen <- cbind(pca_features, data[1])
+str(gen)
+# train-test random splitting
+set.seed(84)
+index <- sample(1:nrow(gen),round(0.75*nrow(gen)))
+train_gen<- gen[ index,]
+test_gen <- gen[-index,]
+# min-max normalisation
+maxs <- apply(train_gen, 2, max)
+mins <- apply(train_gen, 2, min)
+scaled <- as.data.frame(scale(gen, center = mins, scale = maxs - mins))
+train_gen <- as.data.frame(scale(train_gen, center = mins, scale = maxs - mins))
+test_gen  <- as.data.frame(scale(test_gen, center = mins, scale = maxs - mins))
+table(data$Class)
+```
+
+```{r}
+set.seed(83)
+nn_model <- neuralnet(Class ~ .,
+                       data=train_gen, 
+                       hidden=c(12, 9), 
+                       act.fct = "logistic",
+                       linear.output=FALSE)
+plotnet(nn_model)
+```
+
+```{r}
+set.seed(83)
+nn_model2 <- neuralnet(Class ~ .,
+                       data=gen, 
+                       hidden=c(533, 20), 
+                       act.fct = "logistic",
+                       linear.output=FALSE)
+```
+
+
+```{r}
+y_true <- test_gen$Class
+#y_pred_pro <- nn_model$net.result[[1]]
+test_predictions <- predict(nn_model2, 
+                            newdata = test_gen, 
+                            type = "response")
+y_pred <- ifelse(test_predictions > 0.5, 1, 0)
+y_pred <- as.vector(y_pred)
+#y_pred <- ifelse(y_pred > 0.6, 1, 0)
+```
+
+```{r}
+accuracy <- sum(y_pred == y_true) / length(y_true)
+print(paste("Accuracy:", accuracy))
+```
+
+```{r}
+conf_matrix <- table(Predicted = y_pred, Actual = y_true)
+print(conf_matrix)
+```
+
+```{r}
+roc_curve <- roc(y_true, y_pred)
+plot(roc_curve)
+auc(roc_curve)
+```
+
+
+
+#see how is the model on real test data
+```{r}
+new_data <- read.csv("test.csv")
+sum(is.na(new_data))
+new_data[, 1] <- ifelse(new_data[, 1] == -1, 0, 1)
+selected_gen_frequence <- colnames(selected_features)
+new_data_selected <- new_data[, selected_gen_frequence]
+```
+
+```{r}
+#always keep as dataframe
+gen_test_var <- as.data.frame(predict(pca, 
+                       newdata = new_data_selected))
+gen_test <- cbind(Class = new_data$Class,gen_test_var[, 1:17])
+gen_test_features <- gen_test[, -1] 
+```
+
+
+```{r}
+y_true2 <- gen_test$Class
+test_predictions2 <- predict(nn_model2, gen_test_features)
+y_pred2 <- ifelse(test_predictions2 > 0.5, 1, 0)
+y_pred2 <- as.vector(y_pred2)
+accuracy <- sum(y_pred2 == y_true2) / length(y_true2)
+print(paste("Accuracy:", accuracy))
+conf_matrix <- table(Predicted = y_pred2, Actual = y_true2)
+print(conf_matrix)
+roc_curve <- roc(y_true2, y_pred2)
+plot(roc_curve)
+auc(roc_curve)
+```
+
+
+
