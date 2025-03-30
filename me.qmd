@@ -55,9 +55,11 @@ library(ggplot2)
 library(randomForest)
 library(MASS)
 library(biotools)
+library(magick)
 ```
 
 # Introduction
+
 Modern mass spectrometry collects thousands of molecular features, but analyzing such high-dimensional data is challenging.
 Identifying key patterns can aid early diagnosis and improve treatment.
 
@@ -71,8 +73,8 @@ Through the model analysis, to explore the following research questions:
 
 -   **Secondary research question**: Compare the results of different classification models to find out a best classification model.
 
-
 # Data Processing
+
 ```{r}
 #| results: 'hide'
 data_train <- read.csv("group_37.csv")
@@ -85,7 +87,9 @@ class <- data_train[, 1]
 features <- data_train[, -1]
 data_train[, 1] <- ifelse(data_train[, 1] == -1, 0, 1)
 ```
+
 ## Initial rejection of potential probes
+
 Based on the dataset description, we performed an initial feature selection process to reduce the dimensionality of the data and eliminate variables that may not provide meaningful insights for the model.
 We focused on removing features with extremely low variance, as these are typically considered to be probes or noise sequences that do not contribute valuable information for predictive modeling.
 Such features often show minimal variability across observations and do not offer distinguishing power for classification or regression tasks.
@@ -125,6 +129,7 @@ cat("removed features:", ncol(removed_features), "\n")
 ```
 
 ## Data Dimension Reduction Processing
+
 PCA was further applied to reduce the dimensionality of the data.
 The Kaiser criterion and the cumulative variance contribution ratio were used to select the effective principal components.
 Based on these criteria, the original dataset was updated, leading to a significant reduction in its dimensionality.
@@ -166,10 +171,14 @@ data_train$Class<- as.factor(data_train$Class)
 ```
 
 # Formal data analysis
+
 ## Tree-based methods
+
 ### Classification Tree
+
 Classification Tree partition the feature space into a number of disjoint and non-overlapping regions.
 And predict the class of a given observation as the most commonly occurring class of training observations is the region to which it belongs.
+
 ```{r}
 #| echo: false
 #| results: 'hide'
@@ -191,7 +200,9 @@ plotcp(model.classification)
 #printcp(model.classification)
 ```
 
-The pruning process is based on the complexity parameter (cp) selection. The optimal cp is chosen as the largest value within the range where the cross-validation error remains within one standard deviation of the minimum error. Based on this criterion, a cp of 0.032 is selected to prune the new tree.
+The pruning process is based on the complexity parameter (cp) selection.
+The optimal cp is chosen as the largest value within the range where the cross-validation error remains within one standard deviation of the minimum error.
+Based on this criterion, a cp of 0.032 is selected to prune the new tree.
 
 ```{r}
 #| echo: false
@@ -210,7 +221,8 @@ barplot(model.classification1$variable.importance,
         ylab = "Importance") 
 ```
 
-The classification tree also highlights the importance of variables, showing that PC1 is the most significant, followed by PC12 and PC2. Variables like PC18, PC13, PC21, and PC24 are considered less important.
+The classification tree also highlights the importance of variables, showing that PC1 is the most significant, followed by PC12 and PC2.
+Variables like PC18, PC13, PC21, and PC24 are considered less important.
 
 ```{r}
 #| results: 'hide'
@@ -254,11 +266,17 @@ print(paste("AUC:", auc@y.values[[1]]))
 
 ```
 
-The test accuracy is 0.68, indicating poor performance. While the classification tree has some predictive ability, its overall effectiveness is limited.
+The test accuracy is 0.68, indicating poor performance.
+While the classification tree has some predictive ability, its overall effectiveness is limited.
 
 ### Bagging Tree
-The core idea of bagging is to repeatedly draw samples from the original dataset and build a classification tree on each bootstrapped sample. For each test observation, the class predicted by each tree is recorded. The final prediction is determined by a majority vote, where the class that appears most frequently across all predictions becomes the overall predicted class.
-To select the minimum number of trees that stabilize the OOB error, the model was trained with different numbers of trees, and the OOB error was monitored. Once the error stabilized, the smallest number of trees that achieved this stabilization was chosen to build the final Bagging Tree model.
+
+The core idea of bagging is to repeatedly draw samples from the original dataset and build a classification tree on each bootstrapped sample.
+For each test observation, the class predicted by each tree is recorded.
+The final prediction is determined by a majority vote, where the class that appears most frequently across all predictions becomes the overall predicted class.
+To select the minimum number of trees that stabilize the OOB error, the model was trained with different numbers of trees, and the OOB error was monitored.
+Once the error stabilized, the smallest number of trees that achieved this stabilization was chosen to build the final Bagging Tree model.
+
 ```{r}
 #| results: 'hide'
 #bagging
@@ -291,7 +309,8 @@ bagging_Model <- randomForest(Class~.,data=traindata3,
 varImpPlot(bagging_Model, main="Variable Importance")
 ```
 
-According to the Bagging Tree, Variable.2640 is the most important factor, followed by Variable.4192 and Variable.6481, Variable.132 and Variable.1193, Variable.6442 and Variable.1235 are relatively unimportant.The Accuracy of test is 0.79, which is good. Showing the Bagging Tree has good classification ability.
+According to the Bagging Tree, Variable.2640 is the most important factor, followed by Variable.4192 and Variable.6481, Variable.132 and Variable.1193, Variable.6442 and Variable.1235 are relatively unimportant.The Accuracy of test is 0.79, which is good.
+Showing the Bagging Tree has good classification ability.
 
 ```{r}
 #| results: 'asis'
@@ -310,7 +329,6 @@ accuracy <- sum(y_pred == y_true) / length(y_true)
 print(paste("Accuracy:", accuracy))
 #conf_matrix
 conf_matrix <- table(Predicted = y_pred, Actual = y_true)
-print(conf_matrix)
 #AUC
 score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
@@ -319,17 +337,16 @@ print(paste("AUC:", auc@y.values[[1]]))
 
 ```
 
-
 ### Random Forests
-Random forests enhance Bagging Tree by reducing the correlation between individual trees. By randomly excluding a subset of variables at each split, the trees become more diverse, leading to more stable and reliable predictions.
+
+Random forests enhance Bagging Tree by reducing the correlation between individual trees.
+By randomly excluding a subset of variables at each split, the trees become more diverse, leading to more stable and reliable predictions.
 
 ```{r}
 #random forest
 set.seed(2023)
 random_Model <- randomForest(Class~.,data=traindata3,ntree=500)
 ```
-
-OBB(out of bag)
 
 ```{r}
 #| echo: false
@@ -352,7 +369,7 @@ According to the random forests, Variable.2640 and Variable.4192, which were als
 
 ```{r}
 #| echo: false
-#| results: 'hide'
+#| results: 'asis'
 y_pred_pro <- predict(random_Model,
                      newdata = testdata3,
                      type = "prob")[,2]
@@ -365,7 +382,6 @@ accuracy <- sum(y_pred == y_true) / length(y_true)
 print(paste("Accuracy:", accuracy))
 #conf_matrix
 conf_matrix <- table(Predicted = y_pred, Actual = y_true)
-print(conf_matrix)
 #AUC
 score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
@@ -418,14 +434,20 @@ ggplot(roc_data, aes(x = x, y = y, color = model)) +
   theme(legend.position = "right")
 ```
 
-The ROC comparison shows that the AUC values for the classification tree, bagging tree, and random forest are 0.6936, 0.8953, and 0.9111, respectively. Since the random forest achieves the highest AUC, it demonstrates the best predictive performance among the three models.
-
+The ROC comparison shows that the AUC values for the classification tree, bagging tree, and random forest are 0.6936, 0.8953, and 0.9111, respectively.
+Since the random forest achieves the highest AUC, it demonstrates the best predictive performance among the three models.
 
 ## Discriminant Analysis
-### Test of boxm
-The Box's M-test for homogeneity of covariance matrices was performed, with the results showing a Chi-Square value of 576.49 and degrees of freedom (df) equal to 171. The p-value was extremely small (< 2.2e-16), indicating that the assumption of homogeneity of covariance matrices is violated. However, I still proceeded with LDA as a comparison method.
 
-Next, the Shapiro-Wilk normality test was conducted for each feature, and the Bonferroni correction was applied to adjust for multiple comparisons. A total of 5 features failed the normality test after the correction, meaning they do not follow a normal distribution.
+### Test of boxm
+
+The Box's M-test for homogeneity of covariance matrices was performed, with the results showing a Chi-Square value of 576.49 and degrees of freedom (df) equal to 171.
+The p-value was extremely small (\< 2.2e-16), indicating that the assumption of homogeneity of covariance matrices is violated.
+However, I still proceeded with LDA as a comparison method.
+
+Next, the Shapiro-Wilk normality test was conducted for each feature, and the Bonferroni correction was applied to adjust for multiple comparisons.
+A total of 5 features failed the normality test after the correction, meaning they do not follow a normal distribution.
+
 ```{r}
 #| results: 'hide'
 #| echo: false
@@ -459,8 +481,14 @@ cat("acc:", acc_qda, "\n")
 table(class_pred_qda$class, testdata2$Class)
 
 ```
-Two classification models, Linear Discriminant Analysis (LDA) and Quadratic Discriminant Analysis (QDA), were then applied to the data. For LDA, the accuracy was 73%, with a confusion matrix showing 45 true negatives, 28 true positives, 11 false positives, and 16 false negatives. For QDA, the accuracy improved to 79%, with a confusion matrix showing 48 true negatives, 31 true positives, 8 false positives, and 13 false negatives.
-Finally, ROC curves were plotted for both LDA and QDA. The AUC (Area Under the Curve) values were printed on the plots, providing a visual representation of the models' performance. The AUC for QDA was superior to that of LDA, indicating that QDA had better discriminatory power in distinguishing between the two classes.
+
+Two classification models, Linear Discriminant Analysis (LDA) and Quadratic Discriminant Analysis (QDA), were then applied to the data.
+For LDA, the accuracy was 73%, with a confusion matrix showing 45 true negatives, 28 true positives, 11 false positives, and 16 false negatives.
+For QDA, the accuracy improved to 79%, with a confusion matrix showing 48 true negatives, 31 true positives, 8 false positives, and 13 false negatives.
+Finally, ROC curves were plotted for both LDA and QDA.
+The AUC (Area Under the Curve) values were printed on the plots, providing a visual representation of the models' performance.
+The AUC for QDA was superior to that of LDA, indicating that QDA had better discriminatory power in distinguishing between the two classes.
+
 ```{r}
 #| label: ROC of LDA and QDA
 #| fig-cap: ROC 
@@ -475,7 +503,9 @@ plot(roc_qda, main = "ROC for QDA", print.auc = T, auc.polygon = T, legacy.axes 
 
 ```
 
-The histograms show that both LDA and QDA assign most observations with probabilities close to 0 or 1, indicating high confidence in their classifications. This could suggest that the models are performing well, but it might also imply overfitting or sensitivity to the training data.
+The histograms show that both LDA and QDA assign most observations with probabilities close to 0 or 1, indicating high confidence in their classifications.
+This could suggest that the models are performing well, but it might also imply overfitting or sensitivity to the training data.
+
 ```{r}
 #| label: Distribution of Posterior
 #| fig-cap: Distribution of Posterior Probabilities 
@@ -486,9 +516,11 @@ hist(class_pred_lda$posterior[,2], main = "Distribution of Posterior Probabiliti
 hist(class_pred_qda$posterior[,2], main = "Distribution of Posterior Probabilities for QDA", xlab = "Probability")
 ```
 
-
 ## nn work
-Neural networks improve predictive performance by capturing complex nonlinear relationships between features and the target variable. With multiple hidden layers and structured activation functions, they learn intricate patterns in the data. Additionally, their architecture reduces dependence on any single feature, enhancing generalization.
+
+Neural networks improve predictive performance by capturing complex nonlinear relationships between features and the target variable.
+With multiple hidden layers and structured activation functions, they learn intricate patterns in the data.
+Additionally, their architecture reduces dependence on any single feature, enhancing generalization.
 
 ```{r}
 #| results: 'hide'
@@ -513,7 +545,7 @@ nn_model1 <- neuralnet(Class ~ .,
 ```
 
 ```{r}
-#| results: 'hide'
+#| results: 'asis'
 #| echo: false
 y_pred_pro <- predict(nn_model1, 
                             newdata = testdata3, 
@@ -528,7 +560,6 @@ accuracy <- sum(y_pred == y_true) / length(y_true)
 print(paste("Accuracy:", accuracy))
 #conf_matrix
 conf_matrix <- table(Predicted = y_pred, Actual = y_true)
-print(conf_matrix)
 #AUC
 score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
@@ -560,7 +591,7 @@ This dramatic improvement suggests that the adjusted network architecture effect
 The increased network capacity in the initial layers allowed for better feature extraction, while the gradual reduction in neurons helped refine the representations, ultimately resulting in a more robust and well-generalized model.
 
 ```{r}
-#| results: 'hide'
+#| results: 'asis'
 #| echo: false
 y_pred_pro <- predict(nn_model2, 
                       newdata = testdata3, 
@@ -575,7 +606,6 @@ accuracy <- sum(y_pred == y_true) / length(y_true)
 print(paste("Accuracy:", accuracy))
 #conf_matrix
 conf_matrix <- table(Predicted = y_pred, Actual = y_true)
-print(conf_matrix)
 #AUC
 score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
@@ -623,3 +653,64 @@ ggplot(roc_data, aes(x = x, y = y, color = model)) +
   theme(legend.position = "bottom")
 
 ```
+
+## SVM
+
+The datasets contain features derived from different preprocessing methods:
+
+-   Dataset 1: Original dataset with 5000 features.
+
+-   Dataset 2: Feature selection reduced the number of features to 1824.
+
+-   Dataset 3: Principal Component Analysis (PCA) reduced the feature count to 47.
+
+For each dataset, SVM models were trained, tested, and optimized using GridSearchCV to identify the best hyperparameters.
+The datasets were loaded and divided into features (X) and target labels (y).
+Standardization was applied using StandardScaler to ensure the SVM operates effectively.
+An initial SVM model with default parameters was trained on each dataset.
+Model performance was evaluated using accuracy and Area Under the Curve (AUC) scores.
+Hyperparameter tuning was performed using GridSearchCV to optimize SVM parameters (C, gamma, and kernel).
+The best model from the grid search was selected and evaluated on the test set.
+The following hyperparameters were explored: C: \[0.01, 0.1, 0.5, 1, 2, 10, 100\], gamma: \["scale", "auto", 0.01, 0.1, 1\], kernel: \["linear", "rbf", "poly"\].
+The best hyperparameters were selected based on AUC scores.
+
+| Dataset           | Features | Accuracy | AUC   |
+|-------------------|----------|----------|-------|
+| Original          | 5000     | 0.84     | 0.930 |
+| Feature selection | 1824     | 0.88     | 0.948 |
+| PCA Reduction     | 47       | 0.81     | 0.924 |
+
+:::::: columns
+::: {.column width="33%" align="left"}
+![](svm1.png){width="100%"}
+:::
+
+::: {.column width="33%" align="center"}
+![](svm2.png){width="100%"}
+:::
+
+::: {.column width="33%" align="right"}
+![](svm3.png){width="100%"}
+:::
+::::::
+
+Reducing the number of features from 5000 to 1824 improved accuracy and AUC after tuning.
+PCA-reduced data (47 features) maintained good accuracy but performed slightly worse than feature selection.
+In most cases, GridSearchCV improved AUC over the default model.
+For Dataset 1, a linear kernel was chosen as optimal, while for Datasets 2 and 3, an RBF kernel was preferred. 
+ 
+
+Feature selection (1800 features) provided the best performance in terms of both accuracy and AUC.
+PCA (40 features) led to minor accuracy reduction but is still a viable option for dimensionality reduction.
+
+## Conclusion:
+
+| Classification Model | Accuracy | AUC    |
+|----------------------|----------|--------|
+| Classification tree  | 0.68     | 0.6936 |
+| Bagging tree         | 0.79     | 0.8953 |
+| Random forests       | 0.81     | 0.9111 |
+| LQA                  | 0.73     | 0.908  |
+| QDA                  | 0.79     | 0.902  |
+| NN works             | 0.89     | 0.95   |
+| SVM                  | 0.88     | 0.948  |
