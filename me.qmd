@@ -15,6 +15,8 @@ format:
         \onehalfspacing        
         \usepackage{geometry}  
         \geometry{left=1in, right=1in, top=1in, bottom=1in}
+        \usepackage{lscape} 
+        \usepackage{adjustbox}
     latex_engine: xelatex
     fontsize: 12pt
 editor_options: 
@@ -31,7 +33,6 @@ header-includes:
   - \usepackage{amsmath}
   - \usepackage{amssymb}
   - \usepackage{graphicx}
-  - \usepackage{geometry}
 html_document:
     mathjax: true
 editor: 
@@ -251,7 +252,9 @@ A classification tree is typically suitable for smaller datasets because it is e
 #| results: 'hide'
 #| warning: false
 #| label: fig-tree1
-#| fig-cap: Xerror vs CP
+#| fig-cap: Model Performence with CP
+#| fig.width: 4      
+#| fig.height: 3 
 set.seed(2023)
 par(mfrow = c(1, 1))
 model.classification <- rpart(Class~.,
@@ -315,9 +318,7 @@ perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
 
 ```
-
 The test accuracy is 0.68, indicating poor performance. While the classification tree has some predictive ability, its overall effectiveness is limited.
-
 ### 3.2.2 Bagging Tree
 Bagging involves repeatedly drawing samples from the original dataset and building a classification tree on each bootstrapped sample. For each test observation, the class predicted by each tree is recorded. The final prediction is determined by a majority vote, where the most frequent class across all predictions is chosen. To find the minimum number of trees that stabilize the OOB error, the model was trained with varying tree numbers, and the OOB error was monitored. Once the error stabilized, the smallest number of trees achieving this was selected to build the final Bagging Tree model.
 
@@ -330,7 +331,7 @@ set.seed(2023)
 traindata3$Class <- as.factor(traindata3$Class)
 bagging_Model <- randomForest(Class~.,
                              data=traindata3,
-                             mtry=ncol(traindata2)-1,
+                             mtry=ncol(traindata3)-1,
                              ntree=1000)
 ```
 
@@ -350,7 +351,7 @@ plot(bagging_Model$err.rate[,1],
      main="OBB Error vs. Number of Trees")
 set.seed(2023)
 bagging_Model <- randomForest(Class~.,data=traindata3,
-                              mtry=ncol(traindata2)-1,
+                              mtry=ncol(traindata3)-1,
                               ntree=200)
 varImpPlot(bagging_Model, main="Variable Importance")
 ```
@@ -359,7 +360,7 @@ According to the Bagging Tree, Variable.2640 is the most important factor, follo
 Showing the Bagging Tree has good classification ability.
 
 ```{r}
-#| results: 'asis'
+#| results: 'hide'
 #| echo: false
 #| warning: false
 #| message: false
@@ -382,7 +383,6 @@ perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
 
 ```
-
 ### 3.2.3 Random Forests
 Random forests improve upon Bagging Trees by reducing the correlation between individual trees. By randomly excluding a subset of variables at each split, the trees become more diverse, leading to more stable and reliable predictions. Similarly, the model was trained using the dataset after initial variable selection.
 
@@ -413,7 +413,7 @@ According to the random forests, Variable.2640 and Variable.4192, which were als
 
 ```{r}
 #| echo: false
-#| results: 'asis'
+#| results: 'hide'
 y_pred_pro <- predict(random_Model,
                      newdata = testdata3,
                      type = "prob")[,2]
@@ -440,8 +440,8 @@ print(paste("AUC:", auc@y.values[[1]]))
 #| message: false
 #| label: fig-tree10
 #| fig-cap: ROC Plot Compare
-#| fig.width: 6      
-#| fig.height: 4 
+#| fig.width: 5      
+#| fig.height: 3 
 par(mfrow = c(1, 1))
 y_pred_pro1 <- predict(model.classification1,
                      newdata = testdata,
@@ -481,10 +481,9 @@ ggplot(roc_data, aes(x = x, y = y, color = model)) +
 The ROC comparison shows that the AUC values for the classification tree, bagging tree, and random forest are 0.6936, 0.8953, and 0.9111, respectively.Since the random forest achieves the highest AUC, it demonstrates the best predictive performance among the three models.
 
 ## 3.3 SVM
-Support Vector Machine (SVM) is a classification algorithm that finds the optimal boundary between different classes by maximizing the margin between data points. It identifies key data points, known as support vectors, that are closest to the decision boundary and uses them to define the classification rule. 
-SVM is effective for high-dimensional datasets and works well with small to medium-sized data. So for each dataset, SVM models were trained, tested, and optimized identify the best hyperparameters.
+Support Vector Machine (SVM) is a classification algorithm that finds the optimal boundary between different classes by maximizing the margin between data points. It identifies key data points, known as support vectors, that are closest to the decision boundary and uses them to define the classification rule. SVM is effective for high-dimensional datasets and works well with small to medium-sized data. So for each dataset, SVM models were trained, tested, and optimized identify the best hyperparameters.
 
-The best hyperparameters were selected based on AUC scores.
+For Dataset 1, a linear kernel was optimal, while for Datasets 2 and 3, an RBF kernel performed better. Feature selection dataset(1800 features) provided the best performance in accuracy and AUC, while PCA dataset(40 features) caused a slight accuracy drop but remains a viable dimensionality reduction method.
 
 | Dataset           | Features | Accuracy | AUC   |
 |-------------------|----------|----------|-------|
@@ -493,11 +492,6 @@ The best hyperparameters were selected based on AUC scores.
 | PCA Reduction     | 47       | 0.81     | 0.924 |
 
 ![ROC of SVM](svm.png){#fig-svm width=4in height=4in fig-align="center"}
-
-Reducing the features from 5000 to 1824 improved accuracy and AUC after tuning. PCA (47 features) maintained good accuracy but slightly underperformed compared to feature selection. GridSearchCV generally improved AUC. For Dataset 1, a linear kernel was optimal, while for Datasets 2 and 3, an RBF kernel performed better.
-
-Feature selection (1800 features) provided the best performance in accuracy and AUC, while PCA (40 features) caused a slight accuracy drop but remains a viable dimensionality reduction method.
-
 ## 3.4 Neural networks
 Neural networks enhance predictive performance by capturing complex nonlinear relationships between features and the target variable. With multiple hidden layers and structured activation functions, they learn intricate patterns in the data and reduce dependence on any single feature, improving generalization. To save computational resources and retain as much information as possible, the model was trained using the dataset after initial variable selection and the dataset after PCA process.
 
@@ -584,8 +578,8 @@ print(paste("AUC:", auc@y.values[[1]]))
 ```{r}
 #| label: nnROC
 #| fig-cap: ROC of nn1 and nn2
-#| fig.width: 4      
-#| fig.height: 4 
+#| fig.width: 3      
+#| fig.height: 3 
 par(mfrow = c(1, 1))
 y_pred_pro1 <- predict(nn_model1, 
                       newdata = testdata, 
