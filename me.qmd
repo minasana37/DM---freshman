@@ -14,9 +14,9 @@ format:
         \usepackage{setspace}  
         \onehalfspacing        
         \usepackage{geometry}  
-        \geometry{left=1in, right=1in, top=1in, bottom=1in} 
+        \geometry{left=1in, right=1in, top=1in, bottom=1in}
     latex_engine: xelatex
-    fontsize: 12pt  
+    fontsize: 12pt
 editor_options: 
   chunk_output_type: console
 execute:
@@ -439,10 +439,15 @@ Since the random forest achieves the highest AUC, it demonstrates the best predi
 
 ## Discriminant Analysis
 
+Linear Discriminant Analysis (LDA) and Quadratic Discriminant Analysis (QDA) are classification methods based on probability distributions.
+LDA assumes that different classes share the same covariance structure, meaning they have similar spread and orientation, which leads to a linear decision boundary.
+This makes LDA efficient when the assumption holds, but it may struggle when class distributions are complex.
+QDA, on the other hand, allows each class to have its own covariance structure, resulting in more flexible, curved decision boundaries.
+This makes QDA more powerful for non-linearly separable data but also more prone to overfitting when data is limited.
+
 ### Test of boxm
 
-The Box's M-test for homogeneity of covariance matrices was performed, with the results showing a Chi-Square value of 576.49 and degrees of freedom (df) equal to 171.
-The p-value was extremely small (\< 2.2e-16), indicating that the assumption of homogeneity of covariance matrices is violated.
+The Box's M-test for homogeneity of covariance matrices was performed, with the results showing the p-value was extremely small (\< 2.2e-16), indicating that the assumption of homogeneity of covariance matrices is violated.
 However, I still proceeded with LDA as a comparison method.
 
 Next, the Shapiro-Wilk normality test was conducted for each feature, and the Bonferroni correction was applied to adjust for multiple comparisons.
@@ -451,22 +456,26 @@ A total of 5 features failed the normality test after the correction, meaning th
 ```{r}
 #| results: 'hide'
 #| echo: false
-boxm <- boxM(traindata[,-ncol(traindata)], traindata$Class)
+boxm <- boxM(traindata2[,-ncol(traindata2)], traindata2$Class)
 print(boxm)
-shapiro.test(traindata[,2])  
-shapiro.test(traindata[,3])
+
+p_values <- sapply(traindata2[, -ncol(traindata2)], function(column) shapiro.test(column)$p.value)
+alpha <- 0.05
+bonferroni_threshold <- alpha / length(p_values)
+rejected_normality <- p_values < bonferroni_threshold
+sum(rejected_normality)
 ```
 
 ```{r}
 #| results: 'hide'
 #| echo: false
 ###LDA
-class_lda <- lda(Class~., data = traindata)
-class_pred_lda <- predict(class_lda, testdata)
+class_lda <- lda(Class~., data = traindata2)
+class_pred_lda <- predict(class_lda, testdata2)
 
-acc_lda <- mean(class_pred_lda$class == testdata$Class)
+acc_lda <- mean(class_pred_lda$class == testdata2$Class)
 cat("acc:", acc_lda, "\n")
-table(class_pred_lda$class, testdata$Class)
+table(class_pred_lda$class, testdata2$Class)
 
 ```
 
@@ -475,7 +484,9 @@ table(class_pred_lda$class, testdata$Class)
 #| echo: false
 ### QDA
 class_qda <- qda(Class~., data = traindata2)
+
 class_pred_qda <- predict(class_qda, testdata2)
+
 acc_qda <- mean(class_pred_qda$class == testdata2$Class)
 cat("acc:", acc_qda, "\n")
 table(class_pred_qda$class, testdata2$Class)
@@ -492,8 +503,8 @@ The AUC for QDA was superior to that of LDA, indicating that QDA had better disc
 ```{r}
 #| label: ROC of LDA and QDA
 #| fig-cap: ROC 
-#| fig.width: 8      
-#| fig.height: 4 
+#| fig.width: 6      
+#| fig.height: 3 
 par(mfrow = c(1, 2))
 roc_lda <- roc(testdata$Class, class_pred_lda$posterior[,2])
 plot(roc_lda, main = "ROC for LDA", print.auc = T, auc.polygon = T, legacy.axes = T)
@@ -501,19 +512,6 @@ plot(roc_lda, main = "ROC for LDA", print.auc = T, auc.polygon = T, legacy.axes 
 roc_qda <- roc(testdata$Class, class_pred_qda$posterior[,2])
 plot(roc_qda, main = "ROC for QDA", print.auc = T, auc.polygon = T, legacy.axes = T)
 
-```
-
-The histograms show that both LDA and QDA assign most observations with probabilities close to 0 or 1, indicating high confidence in their classifications.
-This could suggest that the models are performing well, but it might also imply overfitting or sensitivity to the training data.
-
-```{r}
-#| label: Distribution of Posterior
-#| fig-cap: Distribution of Posterior Probabilities 
-#| fig.width: 8      
-#| fig.height: 4 
-par(mfrow = c(1, 2))
-hist(class_pred_lda$posterior[,2], main = "Distribution of Posterior Probabilities for LDA", xlab = "Probability")
-hist(class_pred_qda$posterior[,2], main = "Distribution of Posterior Probabilities for QDA", xlab = "Probability")
 ```
 
 ## nn work
@@ -570,7 +568,8 @@ print(paste("AUC:", auc@y.values[[1]]))
 The training performance was suboptimal, and the model did not meet expectations.
 One possible reason for this was the insufficient network capacity, which prevented the model from fully capturing the complex patterns within the data.
 
-##Adjustment Strategy To improve the model's learning ability, we increased the number of neurons in the first hidden layer to 533, enhancing its capability to extract meaningful features.
+### Adjustment Strategy
+To improve the model's learning ability, we increased the number of neurons in the first hidden layer to 533, enhancing its capability to extract meaningful features.
 In the subsequent hidden layers, we gradually reduced the number of neurons to 256 → 60 → 20, aiming to refine the model's representation while preventing overfitting.
 This hierarchical structure allows the network to capture high-dimensional features in the initial layers and progressively distill the most relevant information in the deeper layers.
 
@@ -656,6 +655,13 @@ ggplot(roc_data, aes(x = x, y = y, color = model)) +
 
 ## SVM
 
+Support Vector Machine (SVM) is a classification algorithm that finds the optimal boundary between different classes by maximizing the margin between data points.
+It identifies key data points, known as support vectors, that are closest to the decision boundary and uses them to define the classification rule.
+If the data is not linearly separable, SVM applies the kernel trick to transform it into a higher-dimensional space where separation is possible.
+One of the main reasons for using SVM is that it does not assume specific data distribution or variance requirements, unlike methods such as Discriminant Analysis (DA).
+
+SVM is effective for high-dimensional datasets and works well with small to medium-sized data.
+However, it can be computationally expensive for very large datasets and requires careful tuning of hyperparameters like C, gamma, and kernel type to achieve optimal performance.
 The datasets contain features derived from different preprocessing methods:
 
 -   Dataset 1: Original dataset with 5000 features.
@@ -680,19 +686,10 @@ The best hyperparameters were selected based on AUC scores.
 | Feature selection | 1824     | 0.88     | 0.948 |
 | PCA Reduction     | 47       | 0.81     | 0.924 |
 
-:::::: columns
-::: {.column width="33%" align="left"}
-![](svm1.png){width="100%"}
-:::
 
-::: {.column width="33%" align="center"}
-![](svm2.png){width="100%"}
-:::
+![](svm.png){width=4in height=4in fig-align="center"}
 
-::: {.column width="33%" align="right"}
-![](svm3.png){width="100%"}
-:::
-::::::
+
 
 Reducing the number of features from 5000 to 1824 improved accuracy and AUC after tuning.
 PCA-reduced data (47 features) maintained good accuracy but performed slightly worse than feature selection.
