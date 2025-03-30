@@ -7,74 +7,120 @@ editor: visual
 ## Data sets created
 
 ```{r}
-data.train <- read.csv("C:\\Users\\10409\\Desktop\\Group 37\\group_37.csv")
-data.test <- read.csv("C:\\Users\\10409\\Desktop\\Group 37\\arcene_test (for groups 32-38).csv")
-data.train$Class<- as.factor(data.train$Class)
-data.test$Class <- as.factor(data.test$Class)
+data_train <- read.csv("group_37.csv")
+data_test <- read.csv("arcene_test (for groups 32-38).csv")
+sum(is.na(data_train))
+sum(is.na(data_test))
+ncol(data_train) == 
+  sum(colnames(data_train) %in% colnames(data_test))
+class <- data_train[, 1]
+features <- data_train[, -1]
+data_train[, 1] <- ifelse(data_train[, 1] == -1, 0, 1)
 ```
 
-## Dimension reduction
+## Initial rejection of potential probes
+
+```{r}
+feature_sd <- apply(features, 2, sd)
+boxplot(feature_sd)
+q1 <- quantile(feature_sd, 0.25)  
+q3 <- quantile(feature_sd, 0.75) 
+sd_threshold <- q3-q1
+selected_features <- features[, feature_sd > sd_threshold]
+removed_features <- features[, feature_sd <= sd_threshold]
+cat("remaing features", ncol(selected_features), "\n")
+cat("removed features:", ncol(removed_features), "\n")
+```
+
+## Data Dimension Reduction Processing
 
 ```{r}
 #use PCA
-train.pca  <- prcomp(data.train[,-1])
-summary(train.pca)
-plot(train.pca)
-sd.pca <- summary(train.pca)$sdev
-tot.pca <- sum(sd.pca^2)
-ave.var <- tot.pca/(ncol(data.train)-1)
+pca<-prcomp(selected_features)
+sd.pca <- pca$sdev
+#based on kaiser
+tot.var<-sum(sd.pca^2)
+ave.var<-tot.var/ncol(selected_features)
 ave.var 
 sd.pca^2 > ave.var
+all_variance <- sd.pca^2
+cum_variance <- cumsum(all_variance) / sum(all_variance)
+selected_components <- which(sd.pca^2 > ave.var)
+selected_variance <- sum(all_variance[selected_components]) / sum(all_variance)
+cat("Cumulative contribution:", selected_variance, "\n")
+pca_features1 <- pca$x[, 1:47]
 ```
 
-so we choose the PCS from 1 to 99.
+```{r}
+#based on Cumulative variance contribution 95%
+cumulative_variance <- cumsum(sd.pca^2) / sum(sd.pca^2)
+selected_components_cumulative <- which(cumulative_variance >= 0.95)[1]
+selected_components_cumulative
+pca_features2 <- pca$x[, 1:selected_components_cumulative]
+```
 
 ```{r}
-loading.matrix <- train.pca$rotation #matrix
-#获取方差贡献率
-variable_contribution <- colSums(train.pca$rotation[,1:99]^2)
-cumulate_variance <- cumsum(sort(variable_contribution,decreasing = T))
-threshold <- 0.95*sum(variable_contribution)
-#选出贡献值95%的
-selected_variance <- which(cumulate_variance <= threshold)
-filtered_data <- data.train[,c(1,selected_variance+1)]
+traindata <- data.frame(pca_features1, Class = data_train[[1]])
+data_train$Class<- as.factor(data_train$Class)
+str(traindata)
 ```
 
 ## Tree-based methods
 
 ### Classification Tree
 
+Description: Classification Tree partition the feature space into a number of disjoint and non-overlapping regions. And predict the class of a given observation as the most commonly occurring class of training observations is the region to which it belongs.
+
+Reason: it's easy to understand and handle the categorical features without the need to create a long series of dummy variables.
+
 ```{r}
 #classification
 library(rpart)
 library(rpart.plot)
 set.seed(2023)
-model.classification <- rpart(Class~.,data=filtered_data,method="class",cp=-1,minsplit=2,minbucket=1)
+model.classification <- rpart(Class~.,data=traindata,method="class",cp=-1,minsplit=2,minbucket=1)
 printcp(model.classification)
 plotcp(model.classification)
 ```
 
+Start with a tree is fully grown, to see the cross validation results use the printcp() function and use plotcp() function to check the complexity parameter value. The smallest tree strategy refers to the largest cp value which is under the dashed line; the intercept of this line equals to the minimum xerror plus its standard deviation 0.642514(0.54545+ 0.097064). Check the table, the value in the range of (0.045455, 0.068182), from the cp plot, the table should larger than 0.642514. So use the cp is 0.032 to prune the tree.
+
 #### Pruning a tree
 
 ```{r}
-model.classification1 <- prune(model.classification,cp=0.08)
-rpart.plot(model.classification1,type = 2,extra = 4)
+model.classification <- prune(model.classification,cp=0.032)
+model.classification
+rpart.plot(model.classification,type = 2,extra = 4)
 ```
+
+After pruning trees with cp =0.032. Check the plot of tree, the variable where the split happens are PC1, PC12, PC13,PC29,PC19,PC31. The terminal nodes of the tree with the 1 as the predicted class have a high probability and the terminal nodes of the tree with 0(-1) as the predicted class have a high probability.
 
 #### Variable Importance
 
 ```{r}
-model.classification1$variable.importance
-barplot(model.classification1$variable.importance,col="lightpink",main = "variable Importance")
+model.classification$variable.importance
+barplot(model.classification$variable.importance,col="lightpink",main = "variable Importance")
 ```
+
+According to the classification tree, PC1 is the most important factor, followed by PC12 and PC2, then the PC18 and PC13, PC21 and PC24 are relatively unimportant.
 
 #### ROC and AUC:
 
 ```{r}
+data_test[, 1] <- ifelse(data_test[, 1] == -1, 0, 1)
+selected_features_names <- colnames(selected_features)
+data_test_new <- data_test[, selected_features_names]
+testdata <- data.frame(
+              predict(pca, newdata = data_test_new)[,1:47],
+              Class = data_test[[1]])
+str(testdata)
+```
+
+```{r}
 library(ROCR)
 library(ggplot2)
-pred.prob <- predict(model.classification1,newdata = data.test,type = "prob")[,2]
-true_labels <- as.numeric(as.character(data.test$Class))
+pred.prob <- predict(model.classification,newdata = testdata,type = "prob")[,2]
+true_labels <- as.numeric(as.character(testdata$Class))
 true_labels[true_labels == -1] <- 0
 score2 <- prediction(pred.prob,true_labels)
 perf2 <- performance(score2,"tpr","fpr")
@@ -85,24 +131,42 @@ ggplot(perfd2,aes(x=x,y=y))+geom_line()+
   ggtitle(paste("Area under the curve:", round(auc2@y.values[[1]], 3)))
 ```
 
+The ROC curve show the classification performance. A higher AUC(close to 1 ) indicates a better-performing model. The AUC of classification tree is 0.694, which is greater than 0.5, show the classification effect is fair.
+
 Prediction:
 
 ```{r}
-class.pred <- predict(model.classification1,newdata = data.test[,-1],type="class")
-test.table.class <- table(data.test[,1],class.pred)
-test.table.class[1,1]/sum(test.table.class[1,])
-test.table.class[2,2]/sum(test.table.class[2,])
+class.pred <- predict(model.classification,newdata = testdata,type="class")
+test.table.class <- table(testdata$Class,class.pred)
+print(test.table.class)
+accuracy <- sum(diag(test.table.class))/sum(test.table.class)
+print(accuracy)
 ```
 
-### Bagging Tree
+After the predict of the test set, obtained the Confusion Matrix and the Accuracy. The Accuracy of test set is 0.68, which is poor. The classification tree model has some classification ability, but it is not particularly good.
+
+### Bagging Forest
+
+Description: Repeatedly draw samples from the original dataset and build a classification tree on each bootstrapped sample. For a given test observation, record the class predicted from each tree and take a majority vote: the overall prediction is the most commonly occurring class across all the predictions.
+
+Reason: Reduce the overfitting risk of a single tree, improve the stability and performance of the model. Can automatically adjust feature importance and easy to explain.
+
+Set the dataset after the feature selection:
+
+```{r}
+traindata2 <- data.frame(selected_features,Class = data_train[1])
+testdata2 <- data.frame(data_test_new,Class = data_test[1])
+```
 
 ```{r}
 library(randomForest)
 #bagging
 set.seed(2023)
-Model.bagging <- randomForest(Class~.,data=filtered_data,mtry=ncol(data.train)-1,ntree=1000)
+Model.bagging <- randomForest(Class~.,data=traindata2,mtry=ncol(traindata2)-1,ntree=500)
 Model.bagging
 ```
+
+Start with randomForest() function and specify that the number of variables tried at each split,mtry,should be equal to the number of variables in the model. Set the ntree= 500, check the out-of-bag estimate of error rate.
 
 #### OOB:
 
@@ -111,27 +175,34 @@ plot(Model.bagging$err.rate[,1],type = "l",
      xlab = "Number of trees",ylab="OOB Error",main="OBB Error vs. Number of Trees")
 ```
 
-new model:
+According to the graph, in the range of (200,500), the OOB error starts to stabilize after decreasing. Select the minimum number of trees that can stabilize the OBB error, there choose ntree = 200.
+
+New model:
 
 ```{r}
 set.seed(2023)
-Model.bagging <- randomForest(Class~.,data=filtered_data,mtry=ncol(data.train)-1,ntree=900)
+Model.bagging <- randomForest(Class~.,data=traindata2,mtry=ncol(traindata2)-1,ntree=200)
 Model.bagging
 ```
+
+Building a new bagging forest model with ntree =200.
 
 #### Variable Importance:
 
 ```{r}
+importance(Model.bagging)
 varImpPlot(Model.bagging, main="predicting class")
 ```
 
-ROC and AUC:
+According to the bagging forest, Variable.2640 is the most important factor, followed by Variable.4192 and Variable.6481, Variable.132 and Variable.1193, Variable.6442 and Variable.1235 are relatively unimportant.
+
+#### ROC and AUC:
 
 ```{r}
 library(ROCR)
 library(ggplot2)
-pred.prob <- predict(Model.bagging,newdata = data.test,type = "prob")[,2]
-true_labels <- as.numeric(as.character(data.test$Class))
+pred.prob <- predict(Model.bagging,newdata = testdata2,type = "prob")[,2]
+true_labels <- as.numeric(as.character(testdata2$Class))
 true_labels[true_labels == -1] <- 0
 score2 <- prediction(pred.prob,true_labels)
 perf2 <- performance(score2,"tpr","fpr")
@@ -142,25 +213,36 @@ ggplot(perfd2,aes(x=x,y=y))+geom_line()+
   ggtitle(paste("Area under the curve:", round(auc2@y.values[[1]], 3)))
 ```
 
-Prediction
+The ROC curve show the classification performance. A higher AUC(close to 1 ) indicates a better-performing model. The AUC of bagging forest is 0.921, which is greater than 0.5 and close to 1, show the classification effect is excellent.
+
+Prediction:
 
 ```{r}
-bagg.pred <- predict(Model.bagging,newdata = data.test[,-1],type="class")
-test.table.bagg <- table(data.test[,1],bagg.pred)
-test.table.bagg[1,1]/sum(test.table.bagg[1,])
-test.table.bagg[2,2]/sum(test.table.bagg[2,])
+bagg.pred <- predict(Model.bagging,newdata = testdata2[,-ncol(testdata2)],type="class")
+test.table.bagg <- table(testdata2$Class,bagg.pred)
+print(test.table.bagg)
+accuracy <- sum(diag(test.table.bagg))/sum(test.table.bagg)
+print(accuracy)
 ```
 
+After the predict of the test set, obtained the Confusion Matrix and the Accuracy. The Accuracy of test set is 0.79, which is good. The bagging forest model has good classification ability.
+
 ### Random Forests
+
+Description: Random forests improve upon bagging by decorrelating the individual trees. By forcibly excluding a random subset of variables, the correlation between any pair of trees is reduced. Therefore the average predictions will be more reliable.
+
+Reason: Reduce the overfitting risk of a single tree, avoid strong feature influence ,improve the stability and performance of the model, make the average predictions will be more reliable.
 
 ```{r}
 #random forest
 set.seed(2023)
-Model.random <- randomForest(Class~.,data=filtered_data,ntree=500)
+Model.random <- randomForest(Class~.,data=traindata2,ntree=500)
 Model.random
 ```
 
-OBB(out of bag)
+Start with randomForest() function and the data set is full train data, because random forests have seletion. Set the ntree= 500, check the out-of-bag estimate of error rate.
+
+#### OBB:
 
 ```{r}
 plot(Model.random$err.rate[,1],type = "l",
@@ -168,28 +250,24 @@ plot(Model.random$err.rate[,1],type = "l",
 
 ```
 
-Variable Importance:
+According to the graph, in the range of (400,500), the OOB error starts to stabilize after decreasing. So we don't change the ntree.
+
+#### Variable Importance:
 
 ```{r}
+importance(Model.random)
 varImpPlot(Model.random, main="predicting class")
 ```
 
-Prediction:
+According to the random forests, Variable.6481 is the most important factor, followed by Variable.2640 and Variable.4192, Variable.3986and Variable.471, Variable.2435and Variable.6215 are relatively unimportant.
 
-```{r}
-random.pred <- predict(Model.random,newdata = data.test[,-1],type="class")
-test.table.random <- table(data.test[,1],random.pred)
-test.table.random[1,1]/sum(test.table.random[1,])
-test.table.random[2,2]/sum(test.table.random[2,])
-```
-
-AUC:
+#### ROC and AUC:
 
 ```{r}
 library(ROCR)
 library(ggplot2)
-pred.prob <- predict(Model.random,newdata = data.test,type = "prob")[,2]
-true_labels <- as.numeric(as.character(data.test$Class))
+pred.prob <- predict(Model.random,newdata = data_test,type = "prob")[,2]
+true_labels <- as.numeric(as.character(data_test$Class))
 true_labels[true_labels == -1] <- 0
 score2 <- prediction(pred.prob,true_labels)
 perf2 <- performance(score2,"tpr","fpr")
@@ -199,3 +277,17 @@ ggplot(perfd2,aes(x=x,y=y))+geom_line()+
   xlab("False positive rate") + ylab("True positive rate") +
   ggtitle(paste("Area under the curve:", round(auc2@y.values[[1]], 3)))
 ```
+
+The ROC curve show the classification performance. A higher AUC(close to 1 ) indicates a better-performing model. The AUC of bagging forest is 0.911, which is greater than 0.5 and close to 1, show the classification effect is excellent.
+
+Prediction:
+
+```{r}
+random.pred <- predict(Model.random,newdata = data_test[,-1],type="class") 
+test.table.random <- table(data_test[,1],random.pred) 
+print(test.table.random) 
+accuracy <- sum(diag(test.table.random))/sum(test.table.random) 
+print(accuracy)
+```
+
+After the predict of the test set, obtained the Confusion Matrix and the Accuracy. The Accuracy of test set is 0.81, which is good. The bagging forest model has good classification ability.
