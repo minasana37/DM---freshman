@@ -233,10 +233,10 @@ Two classification models, LDA and QDA, were applied to the data. The accuracy o
 #| fig.width: 6      
 #| fig.height: 3 
 par(mfrow = c(1, 2))
-roc_lda <- roc(testdata$Class, class_pred_lda$posterior[,2])
+roc_lda <- roc(testdata2$Class, class_pred_lda$posterior[,2])
 plot(roc_lda, main = "ROC for LDA", print.auc = T, auc.polygon = T, legacy.axes = T)
 
-roc_qda <- roc(testdata$Class, class_pred_qda$posterior[,2])
+roc_qda <- roc(testdata2$Class, class_pred_qda$posterior[,2])
 plot(roc_qda, main = "ROC for QDA", print.auc = T, auc.polygon = T, legacy.axes = T)
 
 ```
