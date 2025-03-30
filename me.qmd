@@ -369,33 +369,33 @@ nn_model <- neuralnet(Class ~ .,
 ```
 
 ```{r}
-y_pred_pro <- predict(nn_model, 
-                            newdata = testdata2, 
-                            type = "response")
-y_pred_pro <- unname(y_pred_pro)
-y_pred_pro <- as.vector(y_pred_pro)
-y_pred <- ifelse(y_pred_pro > 0.5, 1, 0)
-y_true <- as.numeric(as.character(testdata$Class))
-
-#Accuracy
-accuracy <- sum(y_pred == y_true) / length(y_true)
-print(paste("Accuracy:", accuracy))
-#conf_matrix
-conf_matrix <- table(Predicted = y_pred, Actual = y_true)
-print(conf_matrix)
-#AUC
-score <- ROCR::prediction(y_pred_pro, y_true)
-auc <- performance(score, "auc")
-perf <- performance(score,"tpr","fpr")
-print(paste("AUC:", auc@y.values[[1]]))
-#ROC plot
-perfd <- data.frame(x=perf@x.values[1][[1]],
-                    y=perf@y.values[1][[1]])
-ggplot(perfd,aes(x=x,y=y))+geom_line()+
-       xlab("False positive rate") + 
-       ylab("True positive rate") +
-ggtitle(paste("Area under the curve:", 
-              round(auc@y.values[[1]], 3)))
+# y_pred_pro <- predict(nn_model, 
+#                             newdata = testdata2, 
+#                             type = "response")
+# y_pred_pro <- unname(y_pred_pro)
+# y_pred_pro <- as.vector(y_pred_pro)
+# y_pred <- ifelse(y_pred_pro > 0.5, 1, 0)
+# y_true <- as.numeric(as.character(testdata$Class))
+# 
+# #Accuracy
+# accuracy <- sum(y_pred == y_true) / length(y_true)
+# print(paste("Accuracy:", accuracy))
+# #conf_matrix
+# conf_matrix <- table(Predicted = y_pred, Actual = y_true)
+# print(conf_matrix)
+# #AUC
+# score <- ROCR::prediction(y_pred_pro, y_true)
+# auc <- performance(score, "auc")
+# perf <- performance(score,"tpr","fpr")
+# print(paste("AUC:", auc@y.values[[1]]))
+# #ROC plot
+# perfd <- data.frame(x=perf@x.values[1][[1]],
+#                     y=perf@y.values[1][[1]])
+# ggplot(perfd,aes(x=x,y=y))+geom_line()+
+#        xlab("False positive rate") + 
+#        ylab("True positive rate") +
+# ggtitle(paste("Area under the curve:", 
+#               round(auc@y.values[[1]], 3)))
 ```
 
 ## Discriminant Analysis
@@ -405,23 +405,30 @@ ggtitle(paste("Area under the curve:",
 ```{r}
 
 
-boxm <- boxM(traindata[,-ncol(traindata)], traindata$Class)
+boxm <- boxM(traindata2[,-ncol(traindata2)], traindata2$Class)
 print(boxm)
 
-shapiro.test(traindata[,2])  
-shapiro.test(traindata[,3])
+p_values <- sapply(traindata2[, -ncol(traindata2)], function(column) shapiro.test(column)$p.value)
+alpha <- 0.05
+bonferroni_threshold <- alpha / length(p_values)
+rejected_normality <- p_values < bonferroni_threshold
+sum(rejected_normality)
 
 ```
+
+The Box's M-test for homogeneity of covariance matrices was performed, with the results showing a Chi-Square value of 576.49 and degrees of freedom (df) equal to 171. The p-value was extremely small (< 2.2e-16), indicating that the assumption of homogeneity of covariance matrices is violated. However, I still proceeded with LDA as a comparison method.
+
+Next, the Shapiro-Wilk normality test was conducted for each feature, and the Bonferroni correction was applied to adjust for multiple comparisons. A total of 5 features failed the normality test after the correction, meaning they do not follow a normal distribution.
 
 ### Lniear Discrimant Analysis
 
 ```{r}
-class_lda <- lda(Class~., data = traindata)
-class_pred_lda <- predict(class_lda, testdata)
+class_lda <- lda(Class~., data = traindata2)
+class_pred_lda <- predict(class_lda, testdata2)
 
-acc_lda <- mean(class_pred_lda$class == testdata$Class)
+acc_lda <- mean(class_pred_lda$class == testdata2$Class)
 cat("acc:", acc_lda, "\n")
-table(class_pred_lda$class, testdata$Class)
+table(class_pred_lda$class, testdata2$Class)
 
 ```
 
@@ -438,18 +445,22 @@ table(class_pred_qda$class, testdata2$Class)
 
 ```
 
+Two classification models, Linear Discriminant Analysis (LDA) and Quadratic Discriminant Analysis (QDA), were then applied to the data. For LDA, the accuracy was 73%, with a confusion matrix showing 45 true negatives, 28 true positives, 11 false positives, and 16 false negatives. For QDA, the accuracy improved to 79%, with a confusion matrix showing 48 true negatives, 31 true positives, 8 false positives, and 13 false negatives.
+
 ### Roc
 
 ```{r}
 #| label: ROC of LDA and QDA
 #| fig-cap: ROC 
-roc_lda <- roc(testdata$Class, class_pred_lda$posterior[,2])
+roc_lda <- roc(testdata2$Class, class_pred_lda$posterior[,2])
 plot(roc_lda, main = "ROC for LDA", print.auc = T, auc.polygon = T, legacy.axes = T)
 
-roc_qda <- roc(testdata$Class, class_pred_qda$posterior[,2])
+roc_qda <- roc(testdata2$Class, class_pred_qda$posterior[,2])
 plot(roc_qda, main = "ROC for QDA", print.auc = T, auc.polygon = T, legacy.axes = T)
 
 ```
+
+Finally, ROC curves were plotted for both LDA and QDA. The AUC (Area Under the Curve) values were printed on the plots, providing a visual representation of the models' performance. The AUC for QDA was superior to that of LDA, indicating that QDA had better discriminatory power in distinguishing between the two classes.
 
 ### Distribution of Posterior Probabilities
 
@@ -460,3 +471,4 @@ hist(class_pred_lda$posterior[,2], main = "Distribution of Posterior Probabiliti
 hist(class_pred_qda$posterior[,2], main = "Distribution of Posterior Probabilities for QDA", xlab = "Probability")
 ```
 
+The histograms show that both LDA and QDA assign most observations with probabilities close to 0 or 1, indicating high confidence in their classifications. This could suggest that the models are performing well, but it might also imply overfitting or sensitivity to the training data.
