@@ -39,8 +39,6 @@ editor:
     wrap: sentence
 ---
 
-## Data sets created
-
 ```{r}
 #| warning: false
 #packages
@@ -686,9 +684,7 @@ The best hyperparameters were selected based on AUC scores.
 | Feature selection | 1824     | 0.88     | 0.948 |
 | PCA Reduction     | 47       | 0.81     | 0.924 |
 
-
-![](svm.png){width=4in height=4in fig-align="center"}
-
+![ROC of SVM](svm.png){#fig-svm width=4in height=4in fig-align="center"}
 
 
 Reducing the number of features from 5000 to 1824 improved accuracy and AUC after tuning.
