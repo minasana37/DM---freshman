@@ -59,7 +59,18 @@ library(biotools)
 
 # Introduction
 
-# Research Question
+Modern mass spectrometry collects thousands of molecular features, but analyzing such high-dimensional data is challenging.
+Identifying key patterns can aid early diagnosis and improve treatment.
+
+To explore the question, the Arcene dataset will be divided into a training set and a test set.
+A unique training set containing 100 samples with 5,000 randomly selected features.
+A fixed test set (100 samples with all 10,000 features) will be used for model evaluation.
+The study will employ various classification techniques to assess their accuracy in distinguishing between cancerous and normal tissue samples.
+Through the model analysis, to explore the following research questions:
+
+-   **Primary research question**: Can biochemical features accurately distinguish between cancerous and normal tissue samples?
+
+-   **Secondary research question**: Compare the results of different classification models to find out a best classification model.
 
 # Data Processing
 
@@ -214,7 +225,7 @@ barplot(model.classification1$variable.importance,
 
 According to the classification tree, PC1 is the most important factor, followed by PC12 and PC2, then the PC18 and PC13, PC21 and PC24 are relatively unimportant.
 
-#### ROC and AUC:
+#### ROC and AUC
 
 ```{r}
 #| results: 'hide'
@@ -298,7 +309,8 @@ bagging_Model <- randomForest(Class~.,
 
 Start with randomForest() function and specify that the number of variables tried at each split,mtry,should be equal to the number of variables in the model.
 Set the ntree= 500, check the out-of-bag estimate of error rate.
-#### OOB:
+
+#### OOB
 
 ```{r}
 #| echo: false
@@ -316,8 +328,6 @@ plot(bagging_Model$err.rate[,1],
 According to the graph, in the range of (200,500), the OOB error starts to stabilize after decreasing.
 Select the minimum number of trees that can stabilize the OBB error, there choose ntree = 200.
 
-new model:
-
 ```{r}
 #| results: 'hide'
 set.seed(2023)
@@ -326,9 +336,7 @@ bagging_Model <- randomForest(Class~.,data=traindata3,
                               ntree=200)
 ```
 
-Building a new bagging forest model with ntree =200.
-
-#### Variable Importance:
+#### Variable Importance
 
 ```{r}
 #| echo: false
@@ -344,7 +352,7 @@ varImpPlot(bagging_Model, main="predicting class")
 
 According to the bagging forest, Variable.2640 is the most important factor, followed by Variable.4192 and Variable.6481, Variable.132 and Variable.1193, Variable.6442 and Variable.1235 are relatively unimportant.
 
-ROC and AUC:
+#### ROC and AUC
 
 ```{r}
 y_pred_pro <- predict(bagging_Model,
@@ -393,7 +401,7 @@ set.seed(2023)
 random_Model <- randomForest(Class~.,data=traindata3,ntree=500)
 ```
 
-OBB(out of bag)
+#### OBB
 
 ```{r}
 plot(random_Model$err.rate[,1],
@@ -404,9 +412,16 @@ plot(random_Model$err.rate[,1],
 
 ```
 
-Variable Importance:
+#### Variable Importance
 
 ```{r}
+#| echo: false
+#| results: 'hide'
+#| warning: false
+#| label: fig-tree7
+#| fig-cap: Variable Importance in Random Forests
+#| fig.width: 6      
+#| fig.height: 8 
 #importance(random_Model)
 varImpPlot(random_Model, main="predicting class")
 ```
@@ -447,7 +462,7 @@ The ROC curve show the classification performance.
 A higher AUC(close to 1 ) indicates a better-performing model.
 The AUC of bagging forest is 0.911, which is greater than 0.5 and close to 1, show the classification effect is excellent.
 
-After the predict of the test set, obtained the Confusion Matrix and the Accuracy.
+Prediction:After the predict of the test set, obtained the Confusion Matrix and the Accuracy.
 The Accuracy of test set is 0.81, which is good.
 The bagging forest model has good classification ability.
 
