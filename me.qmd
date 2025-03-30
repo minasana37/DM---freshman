@@ -58,11 +58,21 @@ library(biotools)
 ```
 
 # Introduction
+Modern mass spectrometry collects thousands of molecular features, but analyzing such high-dimensional data is challenging.
+Identifying key patterns can aid early diagnosis and improve treatment.
 
-# Research Question
+To explore the question, the Arcene dataset will be divided into a training set and a test set.
+A unique training set containing 100 samples with 5,000 randomly selected features.
+A fixed test set (100 samples with all 10,000 features) will be used for model evaluation.
+The study will employ various classification techniques to assess their accuracy in distinguishing between cancerous and normal tissue samples.
+Through the model analysis, to explore the following research questions:
+
+-   **Primary research question**: Can biochemical features accurately distinguish between cancerous and normal tissue samples?
+
+-   **Secondary research question**: Compare the results of different classification models to find out a best classification model.
+
 
 # Data Processing
-
 ```{r}
 #| results: 'hide'
 data_train <- read.csv("group_37.csv")
@@ -75,9 +85,7 @@ class <- data_train[, 1]
 features <- data_train[, -1]
 data_train[, 1] <- ifelse(data_train[, 1] == -1, 0, 1)
 ```
-
 ## Initial rejection of potential probes
-
 Based on the dataset description, we performed an initial feature selection process to reduce the dimensionality of the data and eliminate variables that may not provide meaningful insights for the model.
 We focused on removing features with extremely low variance, as these are typically considered to be probes or noise sequences that do not contribute valuable information for predictive modeling.
 Such features often show minimal variability across observations and do not offer distinguishing power for classification or regression tasks.
@@ -87,9 +95,22 @@ This step is essential for improving the overall performance and interpretabilit
 ```{r}
 #| echo: false
 #| label: fig-init1
-#| fig-cap: Variable Importance
+#| fig-cap: Variable Standard Deviation Distribution
+#| fig.width: 6     
+#| fig.height: 4 
 feature_sd <- apply(features, 2, sd)
-boxplot(feature_sd)
+par(mfrow = c(1, 2))
+boxplot(feature_sd, 
+        xlab = "Features", 
+        ylab = "Standard Deviation", 
+        col = "lightblue")
+hist(feature_sd, 
+     xlab = "Standard Deviation", 
+     ylab = "Frequency", 
+     main = " ",
+     col = "lightblue", 
+     border = "black", 
+     breaks = 100)
 ```
 
 ```{r}
@@ -104,7 +125,6 @@ cat("removed features:", ncol(removed_features), "\n")
 ```
 
 ## Data Dimension Reduction Processing
-
 PCA was further applied to reduce the dimensionality of the data.
 The Kaiser criterion and the cumulative variance contribution ratio were used to select the effective principal components.
 Based on these criteria, the original dataset was updated, leading to a significant reduction in its dimensionality.
@@ -142,18 +162,14 @@ traindata <- data.frame(pca_features1, Class = data_train[[1]])
 traindata2 <- data.frame(pca_features2, Class = data_train[[1]])
 traindata3 <- data.frame(selected_features,Class = data_train[1])
 data_train$Class<- as.factor(data_train$Class)
-str(traindata)
+#str(traindata)
 ```
 
+# Formal data analysis
 ## Tree-based methods
-
 ### Classification Tree
-
-Description: Classification Tree partition the feature space into a number of disjoint and non-overlapping regions.
+Classification Tree partition the feature space into a number of disjoint and non-overlapping regions.
 And predict the class of a given observation as the most commonly occurring class of training observations is the region to which it belongs.
-
-Reason: it's easy to understand and handle the categorical features without the need to create a long series of dummy variables.
-
 ```{r}
 #| echo: false
 #| results: 'hide'
@@ -161,6 +177,7 @@ Reason: it's easy to understand and handle the categorical features without the 
 #| label: fig-tree1
 #| fig-cap: Xerror vs CP
 set.seed(2023)
+par(mfrow = c(1, 1))
 model.classification <- rpart(Class~.,
                               data=traindata,
                               method="class",
@@ -171,50 +188,29 @@ plotcp(model.classification)
 ```
 
 ```{r}
-printcp(model.classification)
+#printcp(model.classification)
 ```
 
-Start with a tree is fully grown, to see the cross validation results use the printcp() function and use plotcp() function to check the complexity parameter value.
-The smallest tree strategy refers to the largest cp value which is under the dashed line; the intercept of this line equals to the minimum xerror plus its standard deviation 0.642514(0.54545+ 0.097064).
-Check the table, the value in the range of (0.045455, 0.068182), from the cp plot, the table should larger than 0.642514.
-So use the cp is 0.032 to prune the tree.
-
-#### Pruning a tree
+The pruning process is based on the complexity parameter (cp) selection. The optimal cp is chosen as the largest value within the range where the cross-validation error remains within one standard deviation of the minimum error. Based on this criterion, a cp of 0.032 is selected to prune the new tree.
 
 ```{r}
 #| echo: false
 #| results: 'hide'
 #| label: fig-tree2
 #| fig-cap: Pruned Classification Tree (cp=0.032)
-#| fig.width: 4      
-#| fig.height: 4 
-model.classification1 <- prune(model.classification,cp=0.032)
-rpart.plot(model.classification1,type = 2,extra = 4)
-```
-
-After pruning trees with cp =0.032.
-Check the plot of tree, the variable where the split happens are PC1, PC12, PC13,PC29,PC19,PC31.
-The terminal nodes of the tree with the 1 as the predicted class have a high probability and the terminal nodes of the tree with 0(-1) as the predicted class have a high probability.
-
-#### Variable Importance
-
-```{r}
-#| echo: false
-#| results: 'hide'
-#| warning: false
-#| label: fig-tree3
-#| fig-cap: Variable Importance
 #| fig.width: 6      
 #| fig.height: 4 
+par(mfrow = c(1, 2))
+model.classification1 <- prune(model.classification,cp=0.032)
+rpart.plot(model.classification1,type = 2,extra = 4)
 barplot(model.classification1$variable.importance,
         col = "lightpink",
+        main  = "Variable-Importance",
         xlab = "Variables",  
         ylab = "Importance") 
 ```
 
-According to the classification tree, PC1 is the most important factor, followed by PC12 and PC2, then the PC18 and PC13, PC21 and PC24 are relatively unimportant.
-
-#### ROC and AUC:
+The classification tree also highlights the importance of variables, showing that PC1 is the most significant, followed by PC12 and PC2. Variables like PC18, PC13, PC21, and PC24 are considered less important.
 
 ```{r}
 #| results: 'hide'
@@ -233,12 +229,10 @@ testdata3 <- data.frame(data_test_new,Class = data_test[1])
 ```
 
 ```{r}
-#| results: 'asis'
+#| results: 'hide'
 #| echo: false
 #| warning: false
 #| message: false
-#| label: fig-tree4
-#| fig-cap: ROC Plot
 y_pred_pro <- predict(model.classification1,
                      newdata = testdata,
                      type = "prob")[,2]
@@ -257,34 +251,14 @@ score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
 perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
-#ROC plot
-perfd <- data.frame(x=perf@x.values[1][[1]],
-                    y=perf@y.values[1][[1]])
-ggplot(perfd,aes(x=x,y=y))+geom_line()+
-       xlab("False positive rate") + 
-       ylab("True positive rate") +
-ggtitle(paste("Area under the curve:", 
-              round(auc@y.values[[1]], 3)))
 
 ```
 
-The ROC curve show the classification performance.
-A higher AUC(close to 1 ) indicates a better-performing model.
-The AUC of classification tree is 0.694, which is greater than 0.5, show the classification effect is fair.
-After the predict of the test set, obtained the Confusion Matrix and the Accuracy.
-The Accuracy of test set is 0.68, which is poor.
-The classification tree model has some classification ability, but it is not particularly good.
+The test accuracy is 0.68, indicating poor performance. While the classification tree has some predictive ability, its overall effectiveness is limited.
 
 ### Bagging Tree
-
-Description: Repeatedly draw samples from the original dataset and build a classification tree on each bootstrapped sample.
-For a given test observation, record the class predicted from each tree and take a majority vote: the overall prediction is the most commonly occurring class across all the predictions.
-
-Reason: Reduce the overfitting risk of a single tree, improve the stability and performance of the model.
-Can automatically adjust feature importance and easy to explain.
-
-Set the dataset after the feature selection:
-
+The core idea of bagging is to repeatedly draw samples from the original dataset and build a classification tree on each bootstrapped sample. For each test observation, the class predicted by each tree is recorded. The final prediction is determined by a majority vote, where the class that appears most frequently across all predictions becomes the overall predicted class.
+To select the minimum number of trees that stabilize the OOB error, the model was trained with different numbers of trees, and the OOB error was monitored. Once the error stabilized, the smallest number of trees that achieved this stabilization was chosen to build the final Bagging Tree model.
 ```{r}
 #| results: 'hide'
 #bagging
@@ -296,57 +270,34 @@ bagging_Model <- randomForest(Class~.,
                              ntree=1000)
 ```
 
-Start with randomForest() function and specify that the number of variables tried at each split,mtry,should be equal to the number of variables in the model.
-Set the ntree= 500, check the out-of-bag estimate of error rate.
-#### OOB:
-
 ```{r}
 #| echo: false
 #| results: 'hide'
 #| warning: false
 #| label: fig-tree5
-#| fig-cap: Model performance changes with the number of trees
+#| fig-cap: Model Performance 
+#| fig.width: 10      
+#| fig.height: 7 
+par(mfrow = c(1, 2))
 plot(bagging_Model$err.rate[,1],
      type = "l",
      xlab = "Number of trees",
      ylab="OOB Error",
      main="OBB Error vs. Number of Trees")
-```
-
-According to the graph, in the range of (200,500), the OOB error starts to stabilize after decreasing.
-Select the minimum number of trees that can stabilize the OBB error, there choose ntree = 200.
-
-new model:
-
-```{r}
-#| results: 'hide'
 set.seed(2023)
 bagging_Model <- randomForest(Class~.,data=traindata3,
                               mtry=ncol(traindata2)-1,
                               ntree=200)
+varImpPlot(bagging_Model, main="Variable Importance")
 ```
 
-Building a new bagging forest model with ntree =200.
-
-#### Variable Importance:
+According to the Bagging Tree, Variable.2640 is the most important factor, followed by Variable.4192 and Variable.6481, Variable.132 and Variable.1193, Variable.6442 and Variable.1235 are relatively unimportant.The Accuracy of test is 0.79, which is good. Showing the Bagging Tree has good classification ability.
 
 ```{r}
+#| results: 'asis'
 #| echo: false
-#| results: 'hide'
 #| warning: false
-#| label: fig-tree6
-#| fig-cap: Variable Importance in Bagging Tree
-#| fig.width: 6      
-#| fig.height: 8 
-#importance(bagging_Model)
-varImpPlot(bagging_Model, main="predicting class")
-```
-
-According to the bagging forest, Variable.2640 is the most important factor, followed by Variable.4192 and Variable.6481, Variable.132 and Variable.1193, Variable.6442 and Variable.1235 are relatively unimportant.
-
-ROC and AUC:
-
-```{r}
+#| message: false
 y_pred_pro <- predict(bagging_Model,
                      newdata = testdata3,
                      type = "prob")[,2]
@@ -365,27 +316,12 @@ score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
 perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
-#ROC plot
-perfd <- data.frame(x=perf@x.values[1][[1]],
-                    y=perf@y.values[1][[1]])
-ggplot(perfd,aes(x=x,y=y))+geom_line()+
-       xlab("False positive rate") + 
-       ylab("True positive rate") +
-ggtitle(paste("Area under the curve:", 
-              round(auc@y.values[[1]], 3)))
+
 ```
 
-Prediction: After the predict of the test set, obtained the Confusion Matrix and the Accuracy.
-The Accuracy of test set is 0.79, which is good.
-The bagging forest model has good classification ability.
 
 ### Random Forests
-
-Description: Random forests improve upon bagging by decorrelating the individual trees.
-By forcibly excluding a random subset of variables, the correlation between any pair of trees is reduced.
-Therefore the average predictions will be more reliable.
-
-Reason: Reduce the overfitting risk of a single tree, avoid strong feature influence ,improve the stability and performance of the model, make the average predictions will be more reliable.
+Random forests enhance Bagging Tree by reducing the correlation between individual trees. By randomly excluding a subset of variables at each split, the trees become more diverse, leading to more stable and reliable predictions.
 
 ```{r}
 #random forest
@@ -396,32 +332,34 @@ random_Model <- randomForest(Class~.,data=traindata3,ntree=500)
 OBB(out of bag)
 
 ```{r}
+#| echo: false
+#| results: 'hide'
+#| warning: false
+#| label: fig-tree8
+#| fig-cap: Model Performance 
+#| fig.width: 10      
+#| fig.height: 7 
+par(mfrow = c(1, 2))
 plot(random_Model$err.rate[,1],
      type = "l",
      xlab = "Number of trees",
      ylab="OOB Error",
      main="OBB Error vs. Number of Trees")
-
-```
-
-Variable Importance:
-
-```{r}
-#importance(random_Model)
 varImpPlot(random_Model, main="predicting class")
 ```
 
-According to the random forests, Variable.6481 is the most important factor, followed by Variable.2640 and Variable.4192, Variable.3986and Variable.471, Variable.2435and Variable.6215 are relatively unimportant.
+According to the random forests, Variable.2640 and Variable.4192, which were also important in the Bagging model, remain influential.
 
 ```{r}
-y_pred_pro <- predict(random_Model, 
-                      newdata = testdata3, 
-                      type = "prob")[, 2]
+#| echo: false
+#| results: 'hide'
+y_pred_pro <- predict(random_Model,
+                     newdata = testdata3,
+                     type = "prob")[,2]
 y_pred_pro <- unname(y_pred_pro)
-y_pred_pro <- as.numeric(as.vector(y_pred_pro))
+y_pred_pro <- as.vector(y_pred_pro)
 y_pred <- ifelse(y_pred_pro > 0.5, 1, 0)
 y_true <- as.numeric(as.character(testdata$Class))
-
 #Accuracy
 accuracy <- sum(y_pred == y_true) / length(y_true)
 print(paste("Accuracy:", accuracy))
@@ -433,39 +371,74 @@ score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
 perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
-#ROC plot
-perfd <- data.frame(x=perf@x.values[1][[1]],
-                    y=perf@y.values[1][[1]])
-ggplot(perfd,aes(x=x,y=y))+geom_line()+
-       xlab("False positive rate") + 
-       ylab("True positive rate") +
-ggtitle(paste("Area under the curve:", 
-              round(auc@y.values[[1]], 3)))
 ```
 
-The ROC curve show the classification performance.
-A higher AUC(close to 1 ) indicates a better-performing model.
-The AUC of bagging forest is 0.911, which is greater than 0.5 and close to 1, show the classification effect is excellent.
+```{r}
+#| results: 'hide'
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-tree10
+#| fig-cap: ROC Plot Compare
+#| fig.width: 6      
+#| fig.height: 4 
+par(mfrow = c(1, 1))
+y_pred_pro1 <- predict(model.classification1,
+                     newdata = testdata,
+                     type = "prob")[,2]
+y_pred_pro2 <- predict(bagging_Model,
+                     newdata = testdata3,
+                     type = "prob")[,2]
+y_pred_pro3 <- predict(random_Model, 
+                      newdata = testdata3, 
+                      type = "prob")[, 2]
+score1 <- ROCR::prediction(y_pred_pro1, y_true)
+perf1 <- performance(score1,"tpr","fpr")
+perfd1 <- data.frame(x=perf1@x.values[1][[1]],
+                    y=perf1@y.values[1][[1]])
+score2 <- ROCR::prediction(y_pred_pro2, y_true)
+perf2 <- performance(score2,"tpr","fpr")
+perfd2 <- data.frame(x=perf2@x.values[1][[1]],
+                    y=perf2@y.values[1][[1]])
+score3 <- ROCR::prediction(y_pred_pro3, y_true)
+perf3 <- performance(score3,"tpr","fpr")
+perfd3 <- data.frame(x=perf3@x.values[1][[1]],
+                    y=perf3@y.values[1][[1]])
+perfd1$model <- "classification tree"
+perfd2$model <- "bagging tree"
+perfd3$model <- "random forest"
+roc_data <- rbind(perfd1, perfd2,perfd3)
+ggplot(roc_data, aes(x = x, y = y, color = model)) +
+  geom_line(size = 1.2) + 
+  xlab("False Positive Rate") + 
+  ylab("True Positive Rate") +
+  ggtitle("ROC Curve Comparison") +
+  scale_color_manual(values = c("skyblue", "pink", "darkorange")) +  
+  theme_minimal() +
+  theme(legend.position = "right")
+```
 
-After the predict of the test set, obtained the Confusion Matrix and the Accuracy.
-The Accuracy of test set is 0.81, which is good.
-The bagging forest model has good classification ability.
+The ROC comparison shows that the AUC values for the classification tree, bagging tree, and random forest are 0.6936, 0.8953, and 0.9111, respectively. Since the random forest achieves the highest AUC, it demonstrates the best predictive performance among the three models.
+
 
 ## Discriminant Analysis
-
 ### Test of boxm
+The Box's M-test for homogeneity of covariance matrices was performed, with the results showing a Chi-Square value of 576.49 and degrees of freedom (df) equal to 171. The p-value was extremely small (< 2.2e-16), indicating that the assumption of homogeneity of covariance matrices is violated. However, I still proceeded with LDA as a comparison method.
 
+Next, the Shapiro-Wilk normality test was conducted for each feature, and the Bonferroni correction was applied to adjust for multiple comparisons. A total of 5 features failed the normality test after the correction, meaning they do not follow a normal distribution.
 ```{r}
+#| results: 'hide'
+#| echo: false
 boxm <- boxM(traindata[,-ncol(traindata)], traindata$Class)
 print(boxm)
 shapiro.test(traindata[,2])  
 shapiro.test(traindata[,3])
-
 ```
 
-### Lniear Discrimant Analysis
-
 ```{r}
+#| results: 'hide'
+#| echo: false
+###LDA
 class_lda <- lda(Class~., data = traindata)
 class_pred_lda <- predict(class_lda, testdata)
 
@@ -475,9 +448,10 @@ table(class_pred_lda$class, testdata$Class)
 
 ```
 
-### QDA
-
 ```{r}
+#| results: 'hide'
+#| echo: false
+### QDA
 class_qda <- qda(Class~., data = traindata2)
 class_pred_qda <- predict(class_qda, testdata2)
 acc_qda <- mean(class_pred_qda$class == testdata2$Class)
@@ -485,12 +459,14 @@ cat("acc:", acc_qda, "\n")
 table(class_pred_qda$class, testdata2$Class)
 
 ```
-
-### Roc
-
+Two classification models, Linear Discriminant Analysis (LDA) and Quadratic Discriminant Analysis (QDA), were then applied to the data. For LDA, the accuracy was 73%, with a confusion matrix showing 45 true negatives, 28 true positives, 11 false positives, and 16 false negatives. For QDA, the accuracy improved to 79%, with a confusion matrix showing 48 true negatives, 31 true positives, 8 false positives, and 13 false negatives.
+Finally, ROC curves were plotted for both LDA and QDA. The AUC (Area Under the Curve) values were printed on the plots, providing a visual representation of the models' performance. The AUC for QDA was superior to that of LDA, indicating that QDA had better discriminatory power in distinguishing between the two classes.
 ```{r}
 #| label: ROC of LDA and QDA
 #| fig-cap: ROC 
+#| fig.width: 8      
+#| fig.height: 4 
+par(mfrow = c(1, 2))
 roc_lda <- roc(testdata$Class, class_pred_lda$posterior[,2])
 plot(roc_lda, main = "ROC for LDA", print.auc = T, auc.polygon = T, legacy.axes = T)
 
@@ -499,27 +475,24 @@ plot(roc_qda, main = "ROC for QDA", print.auc = T, auc.polygon = T, legacy.axes 
 
 ```
 
-### Distribution of Posterior Probabilities
-
+The histograms show that both LDA and QDA assign most observations with probabilities close to 0 or 1, indicating high confidence in their classifications. This could suggest that the models are performing well, but it might also imply overfitting or sensitivity to the training data.
 ```{r}
 #| label: Distribution of Posterior
 #| fig-cap: Distribution of Posterior Probabilities 
+#| fig.width: 8      
+#| fig.height: 4 
+par(mfrow = c(1, 2))
 hist(class_pred_lda$posterior[,2], main = "Distribution of Posterior Probabilities for LDA", xlab = "Probability")
 hist(class_pred_qda$posterior[,2], main = "Distribution of Posterior Probabilities for QDA", xlab = "Probability")
 ```
 
-# nn work
 
-Description: Neural networks enhance predictive performance by learning complex nonlinear relationships between features and the target variable.
-By incorporating multiple hidden layers and a structured activation function, the model captures intricate patterns in the data.
-Additionally, the architecture prevents over-reliance on any single feature, ensuring a more generalizable representation.
-
-Reason: Reduce overfitting risk: By using multiple hidden layers and nonlinear activation functions, the model generalizes better to unseen data, mitigating overfitting.
-Avoid strong feature influence: The neural network distributes learning across multiple neurons and layers, preventing any single feature from dominating the predictions.
-Improve stability and performance: The network architecture enables robust learning from complex data distributions, enhancing overall model reliability.
-Ensure more reliable average predictions: Through iterative optimization and weight adjustments, the network minimizes bias and variance, leading to stable and consistent predictions.
+## nn work
+Neural networks improve predictive performance by capturing complex nonlinear relationships between features and the target variable. With multiple hidden layers and structured activation functions, they learn intricate patterns in the data. Additionally, their architecture reduces dependence on any single feature, enhancing generalization.
 
 ```{r}
+#| results: 'hide'
+#| echo: false
 traindata3 <- data.frame(selected_features,Class = data_train[1])
 testdata3 <- data.frame(data_test_new,Class = data_test[1])
 ```
@@ -529,6 +502,8 @@ This structure was chosen to capture the primary features of the dataset while m
 The aim was to leverage the dimensionality reduction insights from PCA to guide the architecture design and improve the model's ability to extract meaningful patterns from the data.
 
 ```{r}
+#| results: 'hide'
+#| echo: false
 set.seed(82)
 nn_model1 <- neuralnet(Class ~ .,
                        data=testdata3, 
@@ -538,6 +513,8 @@ nn_model1 <- neuralnet(Class ~ .,
 ```
 
 ```{r}
+#| results: 'hide'
+#| echo: false
 y_pred_pro <- predict(nn_model1, 
                             newdata = testdata3, 
                             type = "response")
@@ -557,14 +534,6 @@ score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
 perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
-#ROC plot
-perfd <- data.frame(x=perf@x.values[1][[1]],
-                    y=perf@y.values[1][[1]])
-ggplot(perfd,aes(x=x,y=y))+geom_line()+
-       xlab("False positive rate") + 
-       ylab("True positive rate") +
-ggtitle(paste("Area under the curve:", 
-              round(auc@y.values[[1]], 3)))
 ```
 
 The training performance was suboptimal, and the model did not meet expectations.
@@ -575,6 +544,8 @@ In the subsequent hidden layers, we gradually reduced the number of neurons to 2
 This hierarchical structure allows the network to capture high-dimensional features in the initial layers and progressively distill the most relevant information in the deeper layers.
 
 ```{r}
+#| results: 'hide'
+#| echo: false
 set.seed(83)
 nn_model2 <- neuralnet(Class ~ .,
                        data=testdata3, 
@@ -589,6 +560,8 @@ This dramatic improvement suggests that the adjusted network architecture effect
 The increased network capacity in the initial layers allowed for better feature extraction, while the gradual reduction in neurons helped refine the representations, ultimately resulting in a more robust and well-generalized model.
 
 ```{r}
+#| results: 'hide'
+#| echo: false
 y_pred_pro <- predict(nn_model2, 
                       newdata = testdata3, 
                       type = "prob")
@@ -608,17 +581,14 @@ score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
 perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
-#ROC plot
-perfd <- data.frame(x=perf@x.values[1][[1]],
-                    y=perf@y.values[1][[1]])
-ggplot(perfd,aes(x=x,y=y))+geom_line()+
-       xlab("False positive rate") + 
-       ylab("True positive rate") +
-ggtitle(paste("Area under the curve:", 
-              round(auc@y.values[[1]], 3)))
 ```
 
 ```{r}
+#| label: nnROC
+#| fig-cap: ROC of nn1 and nn2
+#| fig.width: 4      
+#| fig.height: 4 
+par(mfrow = c(1, 1))
 y_pred_pro1 <- predict(nn_model1, 
                       newdata = testdata3, 
                       type = "prob")
