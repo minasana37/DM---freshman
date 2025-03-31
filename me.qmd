@@ -514,19 +514,16 @@ The ROC comparison shows that the AUC values for the classification tree, baggin
 
 ## 3.3 SVM
 
-Support Vector Machine (SVM) is a classification algorithm that finds the optimal boundary between different classes by maximizing the margin between data points.
-It identifies key data points, known as support vectors, that are closest to the decision boundary and uses them to define the classification rule.
-SVM is effective for high-dimensional datasets and works well with small to medium-sized data.
-So for each dataset, SVM models were trained, tested, and optimized identify the best hyperparameters.
+Support Vector Machine (SVM) is a classification algorithm that finds the optimal boundary between classes by maximizing the margin between data points. It identifies key support vectors closest to the decision boundary to define the classification rule. SVM is effective for high-dimensional datasets and works well with small to medium-sized data.
 
-For Dataset 1, a linear kernel was optimal, while for Datasets 2 and 3, an RBF kernel performed better.
-Feature selection dataset(1800 features) provided the best performance in accuracy and AUC, while PCA dataset(40 features) caused a slight accuracy drop but remains a viable dimensionality reduction method.
+For Dataset 1, a linear kernel was optimal, while for Datasets 2 and 3, an RBF kernel performed better. The feature selection dataset (1800 features) achieved the highest accuracy and AUC, while the PCA dataset (40 features) caused a slight accuracy drop but remains a viable dimensionality reduction method.
 
 | Dataset           | Features | Accuracy | AUC   |
 |-------------------|----------|----------|-------|
 | Original          | 5000     | 0.84     | 0.930 |
 | Feature selection | 1824     | 0.88     | 0.948 |
 | PCA Reduction     | 47       | 0.81     | 0.924 |
+Table: SVM Model Performance on Different Feature Sets {#tbl-performance}
 
 ![ROC of SVM](svm.png){#fig-svm width="4in" height="4in" fig-align="center"}
 
@@ -680,8 +677,11 @@ Overall, the results indicate that more complex models, particularly neural netw
 | QDA                  | 0.79     | 0.902 |
 | SVM                  | 0.88     | 0.948 |
 | Neural networks      | 0.89     | 0.950 |
+Table: Model Performance with Different Models {#tbl-performance}
 
 # Acknowledgment
 
 AI tools, including **Deeply** and **ChatGPT**, have been used for proofreading and enhancing the English language proficiency in this report.
 These tools were employed solely for language improvement purposes, in accordance with the guidelines provided.
+
+# References
