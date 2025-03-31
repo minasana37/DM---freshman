@@ -1,6 +1,6 @@
 ---
 title: "Analysis of Cancer Data"
-author: "Group_37"
+author: "Group 37: Gaoli Lin, Haowei Yan, Haotian Liu, Yizhou Gu"
 format: 
   html:
     embed-resources: true
