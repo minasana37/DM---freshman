@@ -82,7 +82,13 @@ testdata2 <- data.frame(
   predict(pca, newdata = data_test_new)[,1:18],
   Class = data_test[[1]])#after pca based on cumulative variance 
 testdata3 <- data.frame(data_test_new,Class = data_test[1])# only after feature selection
-#str(testdata)
+#str(testdata)\
+
+# Write csv for SVM 
+write.csv(traindata, "traindata.csv", row.names = F)
+write.csv(testdata, "testdata.csv", row.names = F)
+write.csv(traindata3, "traindata3.csv", row.names = F)
+write.csv(testdata3, "testdata3.csv", row.names = F)
 
 # Use boxM test
 boxm <- boxM(traindata2[,-ncol(traindata2)], traindata2$Class)
