@@ -19,6 +19,7 @@ format:
         \usepackage{adjustbox}
     latex_engine: xelatex
     fontsize: 12pt
+bibliography: references.bib
 editor_options: 
   chunk_output_type: console
 execute:
@@ -263,7 +264,7 @@ plot(roc_qda, main = "ROC for QDA", print.auc = T, auc.polygon = T, legacy.axes 
 ### 3.2.1 Classification Tree
 
 Classification Tree partition the feature space into a number of disjoint and non-overlapping regions.And predict the class of a given observation as the most commonly occurring class of training observations is the region to which it belongs.
-A classification tree is typically suitable for smaller datasets because it is easy to interpret during the training process and can quickly generate predictions.
+A classification tree is typically suitable for smaller datasets because it is easy to interpret during the training process and can quickly generate predictions[@week4_tree_based].
 The analysis was then performed using the dataset processed with PCA
 
 ```{r}
@@ -345,8 +346,7 @@ While the classification tree has some predictive ability, its overall effective
 
 Bagging involves repeatedly drawing samples from the original dataset and building a classification tree on each bootstrapped sample.
 For each test observation, the class predicted by each tree is recorded.
-The final prediction is determined by a majority vote, where the most frequent class across all predictions is chosen.
-To find the minimum number of trees that stabilize the OOB error, the model was trained with varying tree numbers, and the OOB error was monitored.
+The final prediction is determined by a majority vote, where the most frequent class across all predictions is chosen.[@week4_tree_based] To find the minimum number of trees that stabilize the OOB error, the model was trained with varying tree numbers, and the OOB error was monitored.
 Once the error stabilized, the smallest number of trees achieving this was selected to build the final Bagging Tree model.
 
 Since bagging is an ensemble method that uses multiple classification trees, it typically requires more data to effectively train the trees and improve prediction accuracy through ensemble learning.
@@ -416,7 +416,7 @@ print(paste("AUC:", auc@y.values[[1]]))
 
 Random forests improve upon Bagging Trees by reducing the correlation between individual trees.
 By randomly excluding a subset of variables at each split, the trees become more diverse, leading to more stable and reliable predictions.
-Similarly, the model was trained using the dataset after initial variable selection.
+Similarly, the model was trained using the dataset after initial variable selection.[@week4_tree_based]
 
 ```{r}
 #random forest
