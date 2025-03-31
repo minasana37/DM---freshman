@@ -2,6 +2,7 @@
 title: "Untitled"
 format: html
 editor: visual
+bibliography: references.bib
 ---
 
 ## Data sets created
@@ -69,7 +70,7 @@ str(traindata)
 
 ### Classification Tree
 
-Description: Classification Tree partition the feature space into a number of disjoint and non-overlapping regions. And predict the class of a given observation as the most commonly occurring class of training observations is the region to which it belongs.
+Description: Classification Tree partition the feature space into a number of disjoint and non-overlapping regions. And predict the class of a given observation as the most commonly occurring class of training observations is the region to which it belongs.[@week4_tree_based]
 
 Reason: it's easy to understand and handle the categorical features without the need to create a long series of dummy variables.
 
@@ -291,67 +292,3 @@ print(accuracy)
 ```
 
 After the predict of the test set, obtained the Confusion Matrix and the Accuracy. The Accuracy of test set is 0.81, which is good. The bagging forest model has good classification ability.
-
-
-
-## Discriminant Analysis
-
-### Test of boxm
-
-```{r}
-
-
-boxm <- boxM(filtered_data[,-1], filtered_data$class)
-print(boxm)
-
-shapiro.test(filtered_data[,2])  
-shapiro.test(filtered_data[,3])
-
-```
-
-### Lniear Discrimant Analysis
-
-```{r}
-class_lda <- lda(class~., data = filtered_data)
-class_pred_lda <- predict(class_lda, filtered_test)
-
-acc_lda <- mean(class_pred_lda$class == filtered_test$class)
-print(acc_lda)
-table(class_pred_lda$class, filtered_test$class)
-
-```
-
-### QDA
-
-```{r}
-class_qda <- qda(class~., data = filtered_data)
-
-class_pred_qda <- predict(class_qda, filtered_test)
-
-acc_qda <- mean(class_pred_qda$class == filtered_test$class)
-print(acc_qda)
-table(class_pred_qda$class, filtered_test$class)
-
-```
-
-### ROC
-
-```{r}
-#| label: ROC of LDA and QDA
-#| fig-cap: ROC 
-roc_lda <- roc(filtered_test$class, class_pred_lda$posterior[,2])
-plot(roc_lda, main = "ROC for LDA", print.auc = T, auc.polygon = T, legacy.axes = T)
-
-roc_qda <- roc(filtered_test$class, class_pred_qda$posterior[,2])
-plot(roc_qda, main = "ROC for QDA", print.auc = T, auc.polygon = T, legacy.axes = T)
-
-```
-
-### Distribution of Posterior Probabilities
-
-```{r}
-#| label: Distribution of Posterior
-#| fig-cap: Distribution of Posterior Probabilities 
-hist(class_pred_lda$posterior[,2], main = "Distribution of Posterior Probabilities for LDA", xlab = "Probability")
-hist(class_pred_qda$posterior[,2], main = "Distribution of Posterior Probabilities for QDA", xlab = "Probability")
-```
