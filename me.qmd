@@ -674,3 +674,7 @@ Overall, the results indicate that more complex models, particularly neural netw
 | QDA                  | 0.79     | 0.902 |
 | SVM                  | 0.88     | 0.948 |
 | Neural networks      | 0.89     | 0.950 |
+
+
+# Acknowledgment
+AI tools, including **Deeply** and **ChatGPT**, have been used for proofreading and enhancing the English language proficiency in this report. These tools were employed solely for language improvement purposes, in accordance with the guidelines provided.
