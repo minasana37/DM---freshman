@@ -253,7 +253,7 @@ A classification tree is typically suitable for smaller datasets because it is e
 #| warning: false
 #| label: fig-tree1
 #| fig-cap: Model Performence with CP
-#| fig.width: 4      
+#| fig.width: 5      
 #| fig.height: 3 
 set.seed(2023)
 par(mfrow = c(1, 1))
@@ -319,6 +319,7 @@ print(paste("AUC:", auc@y.values[[1]]))
 
 ```
 The test accuracy is 0.68, indicating poor performance. While the classification tree has some predictive ability, its overall effectiveness is limited.
+
 ### 3.2.2 Bagging Tree
 Bagging involves repeatedly drawing samples from the original dataset and building a classification tree on each bootstrapped sample. For each test observation, the class predicted by each tree is recorded. The final prediction is determined by a majority vote, where the most frequent class across all predictions is chosen. To find the minimum number of trees that stabilize the OOB error, the model was trained with varying tree numbers, and the OOB error was monitored. Once the error stabilized, the smallest number of trees achieving this was selected to build the final Bagging Tree model.
 
