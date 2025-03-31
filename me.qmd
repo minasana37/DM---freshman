@@ -83,7 +83,7 @@ features <- data_train[, -1]
 data_train[, 1] <- ifelse(data_train[, 1] == -1, 0, 1)
 ```
 
-## 2.1Initial rejection of potential probes
+## 2.1 Initial rejection of potential probes
 
 Based on the dataset description, we performed an initial feature selection process to reduce the dimensionality of the data and eliminate variables that may not provide meaningful insights for the model.
 We focused on removing features with extremely low variance, as these are typically considered to be probes or noise sequences that do not contribute valuable information for predictive modeling.
@@ -528,7 +528,13 @@ Feature selection dataset(1800 features) provided the best performance in accura
 | Feature selection | 1824     | 0.88     | 0.948 |
 | PCA Reduction     | 47       | 0.81     | 0.924 |
 
-![ROC of SVM](svm.png){#fig-svm width="4in" height="4in" fig-align="center"} \## 3.4 Neural networks Neural networks enhance predictive performance by capturing complex nonlinear relationships between features and the target variable.
+![ROC of SVM](svm.png){#fig-svm width="4in" height="4in" fig-align="center"}
+
+\newpage
+
+## 3.4 Neural networks
+
+Neural networks enhance predictive performance by capturing complex nonlinear relationships between features and the target variable.
 With multiple hidden layers and structured activation functions, they learn intricate patterns in the data and reduce dependence on any single feature, improving generalization.
 To save computational resources and retain as much information as possible, the model was trained using the dataset after initial variable selection and the dataset after PCA process.
 
@@ -674,3 +680,8 @@ Overall, the results indicate that more complex models, particularly neural netw
 | QDA                  | 0.79     | 0.902 |
 | SVM                  | 0.88     | 0.948 |
 | Neural networks      | 0.89     | 0.950 |
+
+# Acknowledgment
+
+AI tools, including **Deeply** and **ChatGPT**, have been used for proofreading and enhancing the English language proficiency in this report.
+These tools were employed solely for language improvement purposes, in accordance with the guidelines provided.
