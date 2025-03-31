@@ -11,7 +11,7 @@ library(randomForest)
 library(MASS)
 library(biotools)
 library(magick)
-
+#read dataset
 data_train <- read.csv("group_37.csv")
 data_test <- read.csv("arcene_test (for groups 32-38).csv")
 sum(is.na(data_train))
@@ -20,8 +20,8 @@ ncol(data_train) ==
   sum(colnames(data_train) %in% colnames(data_test))
 class <- data_train[, 1]
 features <- data_train[, -1]
-data_train[, 1] <- ifelse(data_train[, 1] == -1, 0, 1)
-
+data_train[, 1] <- ifelse(data_train[, 1] == -1, 0, 1)#change class-1 to 0 
+#check the distribution of standard deviation of features
 feature_sd <- apply(features, 2, sd)
 par(mfrow = c(1, 2))
 boxplot(feature_sd, 
@@ -35,7 +35,7 @@ hist(feature_sd,
      col = "lightblue", 
      border = "black", 
      breaks = 100)
-
+#reduce the data dimensionality
 q1 <- quantile(feature_sd, 0.25)  
 q3 <- quantile(feature_sd, 0.75) 
 sd_threshold <- q3-q1
@@ -65,9 +65,9 @@ selected_components_cumulative <- which(cumulative_variance >= 0.95)[1]
 selected_components_cumulative
 pca_features2 <- pca$x[, 1:selected_components_cumulative]
 
-traindata <- data.frame(pca_features1, Class = data_train[[1]])
-traindata2 <- data.frame(pca_features2, Class = data_train[[1]])
-traindata3 <- data.frame(selected_features,Class = data_train[1])
+traindata <- data.frame(pca_features1, Class = data_train[[1]])#after pca based on kasier
+traindata2 <- data.frame(pca_features2, Class = data_train[[1]])#after pca based on cumulative variance 
+traindata3 <- data.frame(selected_features,Class = data_train[1])# only after feature selection
 data_train$Class<- as.factor(data_train$Class)
 #str(traindata)
 #test data process
@@ -76,11 +76,11 @@ selected_features_names <- colnames(selected_features)
 data_test_new <- data_test[, selected_features_names]
 testdata <- data.frame(
   predict(pca, newdata = data_test_new)[,1:47],
-  Class = data_test[[1]])
+  Class = data_test[[1]])#after pca based on kasier
 testdata2 <- data.frame(
   predict(pca, newdata = data_test_new)[,1:18],
-  Class = data_test[[1]])
-testdata3 <- data.frame(data_test_new,Class = data_test[1])
+  Class = data_test[[1]])#after pca based on cumulative variance 
+testdata3 <- data.frame(data_test_new,Class = data_test[1])# only after feature selection
 #str(testdata)
 
 boxm <- boxM(traindata2[,-ncol(traindata2)], traindata2$Class)
@@ -115,7 +115,7 @@ plot(roc_lda, main = "ROC for LDA", print.auc = T, auc.polygon = T, legacy.axes 
 
 roc_qda <- roc(testdata2$Class, class_pred_qda$posterior[,2])
 plot(roc_qda, main = "ROC for QDA", print.auc = T, auc.polygon = T, legacy.axes = T)
-
+#classification tree
 set.seed(2023)
 par(mfrow = c(1, 1))
 model.classification <- rpart(Class~.,
@@ -124,18 +124,17 @@ model.classification <- rpart(Class~.,
                               cp=-1,
                               minsplit=2,
                               minbucket=1)
-plotcp(model.classification)
-
-printcp(model.classification)
-
+plotcp(model.classification)#complexity parameter plot
+printcp(model.classification)# find the minimum xerror
+#change cp to 0.032
 par(mfrow = c(1, 2))
 model.classification1 <- prune(model.classification,cp=0.032)
-rpart.plot(model.classification1,type = 2,extra = 4)
+rpart.plot(model.classification1,type = 2,extra = 4)#classification tree plot
 barplot(model.classification1$variable.importance,
         col = "lightpink",
         main  = "Variable-Importance",
         xlab = "Variables",  
-        ylab = "Importance") 
+        ylab = "Importance") #variance importance
 
 y_pred_pro <- predict(model.classification1,
                       newdata = testdata,
@@ -163,18 +162,18 @@ bagging_Model <- randomForest(Class~.,
                               data=traindata3,
                               mtry=ncol(traindata3)-1,
                               ntree=1000)
-
+#change ntree to 200.
 par(mfrow = c(1, 2))
 plot(bagging_Model$err.rate[,1],
      type = "l",
      xlab = "Number of trees",
      ylab="OOB Error",
-     main="OBB Error vs. Number of Trees")
+     main="OOB Error vs. Number of Trees")#OOB error plot
 set.seed(2023)
 bagging_Model <- randomForest(Class~.,data=traindata3,
                               mtry=ncol(traindata3)-1,
                               ntree=200)
-varImpPlot(bagging_Model, main="Variable Importance")
+varImpPlot(bagging_Model, main="Variable Importance")#variable importance
 
 y_pred_pro <- predict(bagging_Model,
                       newdata = testdata3,
@@ -193,7 +192,7 @@ score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
 perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
-
+#random forest
 set.seed(2023)
 random_Model <- randomForest(Class~.,data=traindata3,ntree=500)
 
@@ -202,8 +201,8 @@ plot(random_Model$err.rate[,1],
      type = "l",
      xlab = "Number of trees",
      ylab="OOB Error",
-     main="OBB Error vs. Number of Trees")
-varImpPlot(random_Model, main="predicting class")
+     main="OOB Error vs. Number of Trees")#OOB error plot
+varImpPlot(random_Model, main="predicting class")#variable importance
 
 y_pred_pro <- predict(random_Model,
                       newdata = testdata3,
@@ -222,7 +221,7 @@ score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
 perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
-
+#roc plot in one graph
 par(mfrow = c(1, 1))
 y_pred_pro1 <- predict(model.classification1,
                        newdata = testdata,
