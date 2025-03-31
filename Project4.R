@@ -83,36 +83,36 @@ testdata2 <- data.frame(
 testdata3 <- data.frame(data_test_new,Class = data_test[1])# only after feature selection
 #str(testdata)
 
+# Use boxM test
 boxm <- boxM(traindata2[,-ncol(traindata2)], traindata2$Class)
 print(boxm)
 
+# Use shapiro.test and bonferroni correction
 p_values <- sapply(traindata2[, -ncol(traindata2)], function(column) shapiro.test(column)$p.value)
-alpha <- 0.05
-bonferroni_threshold <- alpha / length(p_values)
+bonferroni_threshold <- 0.05 / length(p_values)
 rejected_normality <- p_values < bonferroni_threshold
 sum(rejected_normality)
 
-###LDA
+### Fit LDA
 class_lda <- lda(Class~., data = traindata2)
 class_pred_lda <- predict(class_lda, testdata2)
-
+# Calculate LDA acc and confusion matrix 
 acc_lda <- mean(class_pred_lda$class == testdata2$Class)
 cat("acc:", acc_lda, "\n")
 table(class_pred_lda$class, testdata2$Class)
 
-### QDA
+### Fit QDA
 class_qda <- qda(Class~., data = traindata2)
-
 class_pred_qda <- predict(class_qda, testdata2)
-
+# Calculate QDA acc and confusion matrix
 acc_qda <- mean(class_pred_qda$class == testdata2$Class)
 cat("acc:", acc_qda, "\n")
 table(class_pred_qda$class, testdata2$Class)
-
+# Plot LDA ROC
 par(mfrow = c(1, 2))
 roc_lda <- roc(testdata2$Class, class_pred_lda$posterior[,2])
 plot(roc_lda, main = "ROC for LDA", print.auc = T, auc.polygon = T, legacy.axes = T)
-
+# Plot QDA ROC
 roc_qda <- roc(testdata2$Class, class_pred_qda$posterior[,2])
 plot(roc_qda, main = "ROC for QDA", print.auc = T, auc.polygon = T, legacy.axes = T)
 #classification tree
