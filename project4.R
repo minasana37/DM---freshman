@@ -14,6 +14,7 @@ library(magick)
 #read dataset
 data_train <- read.csv("group_37.csv")
 data_test <- read.csv("arcene_test (for groups 32-38).csv")
+#Checking for null values
 sum(is.na(data_train))
 sum(is.na(data_test))
 ncol(data_train) == 
@@ -257,6 +258,7 @@ ggplot(roc_data, aes(x = x, y = y, color = model)) +
   theme_minimal() +
   theme(legend.position = "right")
 
+# Train a neural network with one hidden layer of 20 neurons
 set.seed(82)
 nn_model1 <- neuralnet(Class ~ .,
                        data=traindata, 
@@ -269,7 +271,9 @@ y_pred_pro <- predict(nn_model1,
                       type = "prob")
 y_pred_pro <- unname(y_pred_pro)
 y_pred_pro <- as.vector(y_pred_pro)
+# Convert predicted probabilities to binary class labels
 y_pred <- ifelse(y_pred_pro > 0.5, 1, 0)
+# Convert true class labels to numeric format for comparison
 y_true <- as.numeric(as.character(testdata$Class))
 
 #Accuracy
@@ -283,6 +287,7 @@ auc <- performance(score, "auc")
 perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
 
+# Train a neural network with four hidden layers
 set.seed(83)
 nn_model2 <- neuralnet(Class ~ .,
                        data=testdata3, 
@@ -290,7 +295,6 @@ nn_model2 <- neuralnet(Class ~ .,
                        act.fct = "logistic",
                        linear.output=FALSE)
 #plotnet(nn_model)
-
 y_pred_pro <- predict(nn_model2, 
                       newdata = testdata3, 
                       type = "prob")
@@ -308,7 +312,7 @@ score <- ROCR::prediction(y_pred_pro, y_true)
 auc <- performance(score, "auc")
 perf <- performance(score,"tpr","fpr")
 print(paste("AUC:", auc@y.values[[1]]))
-
+# Generate and compare ROC curves for two neural network models
 par(mfrow = c(1, 1))
 y_pred_pro1 <- predict(nn_model1, 
                        newdata = testdata, 
@@ -316,22 +320,19 @@ y_pred_pro1 <- predict(nn_model1,
 y_pred_pro2 <- predict(nn_model2, 
                        newdata = testdata3, 
                        type = "prob")
-
 score1 <- ROCR::prediction(y_pred_pro1, y_true)
 perf1 <- performance(score1,"tpr","fpr")
 perfd1 <- data.frame(x=perf1@x.values[1][[1]],
                      y=perf1@y.values[1][[1]])
-
 score2 <- ROCR::prediction(y_pred_pro2, y_true)
 perf2 <- performance(score2,"tpr","fpr")
 perfd2 <- data.frame(x=perf2@x.values[1][[1]],
                      y=perf2@y.values[1][[1]])
-
 perfd1$model <- "nn_model1"
 perfd2$model <- "nn_model2"
+# Combine data for plotting
 roc_data <- rbind(perfd1, perfd2)
-
-
+# Plot the ROC curves for both models
 ggplot(roc_data, aes(x = x, y = y, color = model)) +
   geom_line() + 
   xlab("False Positive Rate") + 
